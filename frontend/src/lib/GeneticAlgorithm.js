@@ -6,6 +6,7 @@ export class GeneticAlgorithm {
     this.generation = 0;
     this.bestFitness = 0;
     this.allTimeBest = null;
+    this.history = [];
   }
   
   // Select the best performing cars
@@ -17,7 +18,7 @@ export class GeneticAlgorithm {
   // Create next generation
   evolve(cars) {
     this.generation++;
-    
+
     // Get best performers
     const topPerformers = this.selectBest(cars, Math.ceil(this.populationSize * 0.2));
     
@@ -26,6 +27,11 @@ export class GeneticAlgorithm {
       this.bestFitness = topPerformers[0].score;
       this.allTimeBest = topPerformers[0].brain.clone();
     }
+
+    // Record history for fitness chart
+    const avgScore = cars.reduce((s, c) => s + c.score, 0) / cars.length;
+    this.history.push({ generation: this.generation, bestScore: topPerformers[0].score, avgScore });
+    if (this.history.length > 100) this.history.shift();
     
     const newBrains = [];
     

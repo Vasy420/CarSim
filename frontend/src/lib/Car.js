@@ -19,7 +19,11 @@ export class Car {
     this.damaged = false;
     this.score = 0;
     this.distanceTraveled = 0;
+    this.laneDeviation = 0;
     this.timeAlive = 0;
+    this.stuckFrames = 0;
+    this.prevX = x;
+    this.prevY = y;
 
     // Sensors
     this.sensors = this.createSensors();
@@ -67,40 +71,65 @@ export class Car {
     }));
   }
 
-  update(roadBorders, traffic, speedMultiplier = 1) {
+  update(roadBorders, traffic, speedMultiplier = 1, stopLines = []) {
     if (!this.damaged) {
       this.timeAlive += speedMultiplier;
 
       if (this.controlType === 'AI') {
         this.move();
-        this.updateSensors(roadBorders, traffic);
+        this.updateSensors(roadBorders, traffic, stopLines);
         this.aiControl();
       } else if (this.controlType === 'MANUAL') {
         this.move();
-        this.updateSensors(roadBorders, traffic);
+        this.updateSensors(roadBorders, traffic, stopLines);
         this.manualControl();
         this.calculateCollisionProximity();
         this.calculateSafeDirection();
       } else if (this.controlType === 'AI_ASSIST') {
         this.move();
-        this.updateSensors(roadBorders, traffic);
+        this.updateSensors(roadBorders, traffic, stopLines);
         this.aiAssistControl();
         this.calculateCollisionProximity();
         this.calculateSafeDirection();
       } else if (this.controlType === 'TRAFFIC') {
+        // Slow/stop at red stop lines within 80 units ahead
+        let shouldStop = false;
+        for (const line of stopLines) {
+          if (line[0].y < this.y && this.y - line[0].y < 80) {
+            shouldStop = true;
+            break;
+          }
+        }
+        // Scale decel/accel by speedMultiplier so stop distance stays bounded at high speeds
+        if (shouldStop) {
+          this.speed = Math.max(0, this.speed - 0.1 * speedMultiplier);
+        } else {
+          this.speed = Math.min(this.maxSpeed, this.speed + 0.05 * speedMultiplier);
+        }
         this.y -= this.speed * speedMultiplier;
       }
 
-      // Track distance traveled
-      this.distanceTraveled = Math.abs(this.y);
-      this.score = this.distanceTraveled + this.timeAlive * 0.1;
+      // Track distance traveled (Euclidean accumulation — works on curved roads too)
+      const dx = this.x - this.prevX;
+      const dy = this.y - this.prevY;
+      this.distanceTraveled += Math.sqrt(dx * dx + dy * dy);
+      this.prevX = this.x;
+      this.prevY = this.y;
+      this.score = this.distanceTraveled + this.timeAlive * 0.1 - this.laneDeviation * 0.01;
 
       // Check collisions
       this.damaged = this.assessDamage(roadBorders, traffic);
 
-      // Timeout for idle cars (prevent stuck generations)
-      if (this.controlType === 'AI' && this.timeAlive > 200) {
-        if (this.speed < 0.2 || this.distanceTraveled < 20) {
+      // Quick-kill stuck cars so camera doesn't linger on crashed/idle ones
+      if (this.controlType === 'AI') {
+        if (this.speed < 0.2) this.stuckFrames += speedMultiplier;
+        else this.stuckFrames = 0;
+        if (this.stuckFrames > 30) this.damaged = true;
+      }
+
+      // Kill cars with low average speed — catches crawlers that evade the old speed check
+      if (this.controlType === 'AI' && this.timeAlive > 150) {
+        if (this.distanceTraveled / this.timeAlive < 0.7) {
           this.damaged = true;
         }
       }
@@ -272,12 +301,12 @@ export class Car {
     this.safeDirection = { angle: bestAngle };
   }
 
-  updateSensors(roadBorders, traffic) {
+  updateSensors(roadBorders, traffic, sensorOnlyBorders = []) {
     this.sensorReadings = this.sensors.map(sensor => {
-      return this.castRay(sensor, roadBorders, traffic);
+      return this.castRay(sensor, roadBorders, traffic, sensorOnlyBorders);
     });
   }
-  castRay(sensor, roadBorders, traffic) {
+  castRay(sensor, roadBorders, traffic, sensorOnlyBorders = []) {
     const rayAngle = this.angle + sensor.angle;
     const rayEnd = {
       x: this.x - Math.sin(rayAngle) * sensor.length,
@@ -287,8 +316,26 @@ export class Car {
     let minDistance = sensor.length;
     let hit = null;
 
-    // Check road borders
+    // Check road borders (also cause damage on contact)
     for (const border of roadBorders) {
+      const intersection = this.getIntersection(
+        { x: this.x, y: this.y },
+        rayEnd,
+        border[0],
+        border[1]
+      );
+
+      if (intersection) {
+        const distance = this.getDistance({ x: this.x, y: this.y }, intersection);
+        if (distance < minDistance) {
+          minDistance = distance;
+          hit = intersection;
+        }
+      }
+    }
+
+    // Sensor-only barriers (e.g. red stop lines) — detected by rays, NO damage
+    for (const border of sensorOnlyBorders) {
       const intersection = this.getIntersection(
         { x: this.x, y: this.y },
         rayEnd,

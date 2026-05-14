@@ -3,6 +3,7 @@
 # IDE and editors
 .idea/
 .vscode/
+.claude/
 
 # Dependencies
 node_modules/
@@ -75,6 +76,15 @@ agenthub/agents/youtube/db
 
 # Build caches
 .cache/
+
+# Generated / temp files
+graphify-out/
+*.png
+/package-lock.json
+
+# Environment files
+.env*
+!.env.example
 
 # Mobile development
 android-sdk/ 
