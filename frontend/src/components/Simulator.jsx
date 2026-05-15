@@ -33,6 +33,10 @@ export const Simulator = ({
   const trafficLightsRef = useRef([]);
   const crossTrafficRef = useRef([]);
   const crossStateRef = useRef([]);
+  // Persistent weight-change accumulators (per layer) so learning trail decays slowly across frames
+  const weightChangeRef = useRef({ ih: null, ho: null });
+  // Recent significant weight changes per generation (ticker)
+  const learningLogRef = useRef([]);
 
   // Refs for props to access fresh values inside animation loop
   const isRunningRef = useRef(isRunning);
@@ -743,10 +747,13 @@ export const Simulator = ({
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const margin = 30;
+    const margin = 20;
+    const headerHeight = 45;
     const width = canvas.width - margin * 2;
-    const chartHeight = 130; // reserved for fitness chart at bottom
-    const nnHeight = canvas.height - margin * 2 - chartHeight;
+    const chartHeight = 140;
+    const tickerHeight = 90;
+    const nnTop = headerHeight + 10;
+    const nnHeight = canvas.height - headerHeight - chartHeight - tickerHeight - 30;
 
     // Sensor inputs (pad to 7)
     const sensorInputs = car.sensorReadings.map(r => r ? r.distance : 0);
@@ -762,48 +769,201 @@ export const Simulator = ({
       { nodes: outputs, label: 'Outputs' }
     ];
     const inputLabels = ['Front', 'F-Right', 'F-Left', 'Right', 'Left', 'B-Right', 'B-Left', 'Speed'];
-    const layerSpacing = width / (layers.length - 0.5);
+    // Header bar
+    const genNum = gaRef.current?.generation ?? 0;
+    ctx.fillStyle = 'rgba(0, 20, 30, 0.9)';
+    ctx.fillRect(margin, margin / 2, width, headerHeight - margin / 2);
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(margin, margin / 2, width, headerHeight - margin / 2);
+
+    ctx.fillStyle = '#00ffff';
+    ctx.font = 'bold 18px "Space Mono", monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = '#00ffff';
+    ctx.fillText('Neural Network', margin + 14, margin / 2 + (headerHeight - margin / 2) / 2);
+    ctx.shadowBlur = 0;
+
+    ctx.font = 'bold 14px "Space Mono", monospace';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.fillText(`Generation ${genNum}`, margin + 200, margin / 2 + (headerHeight - margin / 2) / 2);
+
+    if (evolutionFlashRef.current > 0) {
+      const a = evolutionFlashRef.current / 60;
+      ctx.fillStyle = `rgba(255, 220, 0, ${a})`;
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#ffdc00';
+      ctx.fillText('● EVOLVING', margin + 360, margin / 2 + (headerHeight - margin / 2) / 2);
+      ctx.shadowBlur = 0;
+    }
+
+    // Architecture hint
+    ctx.font = '11px monospace';
+    ctx.fillStyle = 'rgba(180, 200, 220, 0.55)';
+    ctx.textAlign = 'right';
+    ctx.fillText('8 → 8 → 3  (fixed topology, weights evolve)', margin + width - 14, margin / 2 + (headerHeight - margin / 2) / 2);
+    ctx.textAlign = 'left';
+
+    const layerSpacing = (width - 100) / (layers.length - 0.5);
 
     const getNodePos = (layerIndex, nodeIndex, totalNodes) => {
-      const x = margin + layerIndex * layerSpacing + 40;
+      const x = margin + layerIndex * layerSpacing + 80;
       const ySpacing = nnHeight / (totalNodes + 1);
-      const y = margin + (nodeIndex + 1) * ySpacing;
+      const y = nnTop + (nodeIndex + 1) * ySpacing;
       return { x, y };
     };
 
-    // Flash progress: 0=no flash, 1=full flash
+    // Flash progress: 0=no flash, 1=full flash (one-shot pulse at the moment of evolution)
+    const justEvolved = evolutionFlashRef.current === 60;
     const flashProgress = evolutionFlashRef.current / 60;
     if (evolutionFlashRef.current > 0) evolutionFlashRef.current--;
 
     const prevBrain = prevBrainRef.current;
+    const frame = frameCountRef.current;
 
-    const drawConnections = (layerIdx, weights, prevWeights, sourceNodes, targetNodes) => {
+    // Initialize / accumulate persistent weight-change buffers
+    const ensureBuf = (rows, cols) => {
+      const a = new Array(rows);
+      for (let i = 0; i < rows; i++) a[i] = new Float32Array(cols);
+      return a;
+    };
+    if (car.brain.weightsInputHidden) {
+      if (!weightChangeRef.current.ih ||
+          weightChangeRef.current.ih.length !== car.brain.weightsInputHidden.length) {
+        weightChangeRef.current.ih = ensureBuf(
+          car.brain.weightsInputHidden.length,
+          car.brain.weightsInputHidden[0].length
+        );
+      }
+    }
+    if (car.brain.weightsHiddenOutput) {
+      if (!weightChangeRef.current.ho ||
+          weightChangeRef.current.ho.length !== car.brain.weightsHiddenOutput.length) {
+        weightChangeRef.current.ho = ensureBuf(
+          car.brain.weightsHiddenOutput.length,
+          car.brain.weightsHiddenOutput[0].length
+        );
+      }
+    }
+    // Accumulate deltas on evolution moment, decay each frame
+    const accumulate = (buf, weights, prevWeights) => {
+      if (!buf || !prevWeights) return;
+      for (let i = 0; i < weights.length; i++) {
+        for (let j = 0; j < weights[i].length; j++) {
+          if (justEvolved) {
+            const delta = Math.abs(weights[i][j] - prevWeights[i][j]);
+            buf[i][j] = Math.min(1, buf[i][j] + delta * 2.5);
+          }
+          buf[i][j] *= 0.985; // decay
+        }
+      }
+    };
+    accumulate(weightChangeRef.current.ih, car.brain.weightsInputHidden, prevBrain?.weightsInputHidden);
+    accumulate(weightChangeRef.current.ho, car.brain.weightsHiddenOutput, prevBrain?.weightsHiddenOutput);
+
+    // On evolution: log top-K weight changes for ticker
+    const outputLabels = ['Steer', 'Throttle', 'Brake'];
+    if (justEvolved && prevBrain) {
+      const changes = [];
+      const wih = car.brain.weightsInputHidden, pih = prevBrain.weightsInputHidden;
+      if (wih && pih) {
+        for (let i = 0; i < wih.length; i++) {
+          for (let j = 0; j < wih[i].length; j++) {
+            changes.push({
+              src: inputLabels[i] || `I${i}`,
+              dst: `H${j}`,
+              delta: wih[i][j] - pih[i][j]
+            });
+          }
+        }
+      }
+      const who = car.brain.weightsHiddenOutput, pho = prevBrain.weightsHiddenOutput;
+      if (who && pho) {
+        for (let i = 0; i < who.length; i++) {
+          for (let j = 0; j < who[i].length; j++) {
+            changes.push({
+              src: `H${i}`,
+              dst: outputLabels[j] || `O${j}`,
+              delta: who[i][j] - pho[i][j]
+            });
+          }
+        }
+      }
+      changes.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+      for (const c of changes.slice(0, 2)) {
+        if (Math.abs(c.delta) < 0.02) continue;
+        learningLogRef.current.unshift({
+          gen: genNum,
+          text: `${c.src} → ${c.dst} ${c.delta > 0 ? '↑' : '↓'}${(Math.abs(c.delta) * 100).toFixed(0)}%`
+        });
+      }
+      learningLogRef.current = learningLogRef.current.slice(0, 8);
+    }
+
+    // Compute hidden neuron specialization labels
+    const hiddenLabels = [];
+    if (car.brain.weightsInputHidden && car.brain.weightsHiddenOutput) {
+      const wih = car.brain.weightsInputHidden;
+      const who = car.brain.weightsHiddenOutput;
+      const hiddenSize = who.length;
+      for (let j = 0; j < hiddenSize; j++) {
+        // Top input feeding this hidden node
+        let maxIn = 0, maxInIdx = 0;
+        for (let i = 0; i < wih.length; i++) {
+          const w = Math.abs(wih[i][j]);
+          if (w > maxIn) { maxIn = w; maxInIdx = i; }
+        }
+        // Top output this hidden node feeds
+        let maxOut = 0, maxOutIdx = 0;
+        for (let k = 0; k < who[j].length; k++) {
+          const w = Math.abs(who[j][k]);
+          if (w > maxOut) { maxOut = w; maxOutIdx = k; }
+        }
+        hiddenLabels.push(`${(inputLabels[maxInIdx] || 'I').slice(0, 5)}→${outputLabels[maxOutIdx][0]}`);
+      }
+    }
+
+    const drawConnections = (layerIdx, weights, changeBuf, sourceNodes, targetNodes, srcVals, dstVals) => {
       for (let i = 0; i < sourceNodes.length; i++) {
         for (let j = 0; j < targetNodes.length; j++) {
           const weight = weights[i][j];
           const pos1 = getNodePos(layerIdx, i, sourceNodes.length);
           const pos2 = getNodePos(layerIdx + 1, j, targetNodes.length);
-          const alpha = Math.min(1, Math.abs(weight));
+          const absW = Math.abs(weight);
+          const alpha = Math.min(1, absW);
+          // Activity factor: high when both ends active and weight strong → connection "lights up"
+          const activity = (srcVals[i] || 0) * absW;
           const color = weight > 0 ? `rgba(0, 255, 255, ${alpha})` : `rgba(255, 0, 128, ${alpha})`;
 
           ctx.beginPath();
           ctx.moveTo(pos1.x, pos1.y);
           ctx.lineTo(pos2.x, pos2.y);
           ctx.strokeStyle = color;
-          ctx.lineWidth = 0.5 + alpha * 1.5;
+          ctx.lineWidth = 0.5 + alpha * 1.5 + activity * 1.0;
           ctx.stroke();
 
-          // Yellow flash for changed weights after evolution
-          if (flashProgress > 0 && prevWeights) {
-            const delta = Math.abs(weight - prevWeights[i][j]);
-            if (delta > 0.05) {
-              ctx.beginPath();
-              ctx.moveTo(pos1.x, pos1.y);
-              ctx.lineTo(pos2.x, pos2.y);
-              ctx.strokeStyle = `rgba(255, 220, 0, ${Math.min(1, delta * 2) * flashProgress})`;
-              ctx.lineWidth = 1.5 + delta * 3;
-              ctx.stroke();
-            }
+          // Persistent learning trail (yellow glow that decays over multiple frames)
+          const learnIntensity = changeBuf ? changeBuf[i][j] : 0;
+          if (learnIntensity > 0.05) {
+            ctx.beginPath();
+            ctx.moveTo(pos1.x, pos1.y);
+            ctx.lineTo(pos2.x, pos2.y);
+            ctx.strokeStyle = `rgba(255, 220, 0, ${learnIntensity})`;
+            ctx.lineWidth = 1.5 + learnIntensity * 3;
+            ctx.stroke();
+          }
+
+          // Animated energy particle on active connections — visualizes signal flow
+          if (activity > 0.15) {
+            const t = ((frame * 0.02 + (i + j) * 0.13) % 1);
+            const px = pos1.x + (pos2.x - pos1.x) * t;
+            const py = pos1.y + (pos2.y - pos1.y) * t;
+            ctx.beginPath();
+            ctx.arc(px, py, 2 + activity * 2, 0, Math.PI * 2);
+            ctx.fillStyle = weight > 0 ? `rgba(0, 255, 255, ${activity})` : `rgba(255, 0, 128, ${activity})`;
+            ctx.fill();
           }
         }
       }
@@ -811,30 +971,40 @@ export const Simulator = ({
 
     if (car.brain.weightsInputHidden) {
       drawConnections(0, car.brain.weightsInputHidden,
-        prevBrain?.weightsInputHidden, inputs, hidden);
+        weightChangeRef.current.ih, inputs, hidden, inputs, hidden);
     }
     if (car.brain.weightsHiddenOutput) {
       drawConnections(1, car.brain.weightsHiddenOutput,
-        prevBrain?.weightsHiddenOutput, hidden, outputs);
+        weightChangeRef.current.ho, hidden, outputs, hidden, outputs);
     }
 
-    // Draw nodes
+    // Draw nodes with pulse + activation glow
     layers.forEach((layer, l) => {
       layer.nodes.forEach((value, i) => {
         const { x, y } = getNodePos(l, i, layer.nodes.length);
+        const pulse = Math.sin(frame * 0.08 + (l + i) * 0.6) * 0.5 + 0.5;
+        const radius = 10 + value * 2 + pulse * value * 2;
+
+        // Outer glow when node is active
+        if (value > 0.2) {
+          ctx.beginPath();
+          ctx.arc(x, y, radius + 6, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(0, 255, 255, ${value * 0.15})`;
+          ctx.fill();
+        }
 
         ctx.beginPath();
-        ctx.arc(x, y, 10, 0, Math.PI * 2);
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(20, 20, 30, 0.9)';
         ctx.fill();
 
         ctx.beginPath();
-        ctx.arc(x, y, 8, 0, Math.PI * 2);
+        ctx.arc(x, y, radius - 2, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(255, 255, 255, ${value})`;
         ctx.fill();
 
         ctx.beginPath();
-        ctx.arc(x, y, 10, 0, Math.PI * 2);
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.strokeStyle = value > 0.5 ? '#ffffff' : 'rgba(255, 255, 255, 0.3)';
         ctx.lineWidth = 2;
         ctx.stroke();
@@ -847,20 +1017,63 @@ export const Simulator = ({
         if (l === 0) {
           ctx.fillText(inputLabels[i] || `I${i}`, x - 15, y);
         } else if (l === layers.length - 1) {
-          const outputLabels = ['Steer', 'Throttle', 'Brake'];
           ctx.textAlign = 'left';
           ctx.fillText(outputLabels[i], x + 15, y);
           ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
           ctx.fillText(value.toFixed(2), x + 65, y);
+        } else if (l === 1 && hiddenLabels[i]) {
+          // Hidden neuron specialization label
+          ctx.fillStyle = 'rgba(255, 220, 0, 0.75)';
+          ctx.font = '9px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(hiddenLabels[i], x, y + 22);
+          ctx.font = '11px "Space Mono", monospace';
+          ctx.fillStyle = '#ffffff';
         }
       });
 
       const { x } = getNodePos(l, 0, 1);
       ctx.fillStyle = '#00ffff';
-      ctx.font = '12px "Space Mono", monospace';
+      ctx.font = 'bold 13px "Space Mono", monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(layer.label, x, margin - 15);
+      ctx.fillText(layer.label, x, nnTop - 8);
     });
+
+    // Learning ticker box (between NN and fitness chart)
+    const tickerTop = nnTop + nnHeight + 5;
+    ctx.fillStyle = 'rgba(10, 10, 20, 0.85)';
+    ctx.fillRect(margin, tickerTop, width, tickerHeight - 10);
+    ctx.strokeStyle = 'rgba(255, 220, 0, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(margin, tickerTop, width, tickerHeight - 10);
+    ctx.fillStyle = '#ffdc00';
+    ctx.font = 'bold 10px "Space Mono", monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('Learning Log (top weight changes per gen):', margin + 6, tickerTop + 4);
+
+    const log = learningLogRef.current || [];
+    ctx.font = '9px monospace';
+    if (log.length === 0) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.fillText('Waiting for first evolution...', margin + 6, tickerTop + 22);
+    } else {
+      const cols = 2;
+      const colWidth = (width - 12) / cols;
+      const rows = Math.ceil(Math.min(6, log.length) / cols);
+      for (let i = 0; i < Math.min(6, log.length); i++) {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const e = log[i];
+        const age = i / log.length;
+        ctx.fillStyle = `rgba(255, 255, 255, ${1 - age * 0.6})`;
+        ctx.fillText(
+          `Gen ${e.gen}: ${e.text}`,
+          margin + 6 + col * colWidth,
+          tickerTop + 20 + row * 14
+        );
+      }
+    }
 
     // Fitness chart (bottom section)
     const history = gaRef.current?.history || [];
@@ -925,8 +1138,8 @@ export const Simulator = ({
   };
 
   return (
-    <div className="flex gap-4">
-      <div className="flex-1">
+    <div className="flex flex-col gap-4">
+      <div>
         <canvas
           ref={canvasRef}
           className="w-full border-2 border-glow-cyan rounded-lg bg-muted/20"
@@ -934,11 +1147,11 @@ export const Simulator = ({
         />
       </div>
       {showNetwork && (
-        <div className="w-80">
+        <div>
           <canvas
             ref={networkCanvasRef}
-            width={320}
-            height={800}
+            width={1000}
+            height={600}
             className="w-full border-2 border-glow-magenta rounded-lg bg-muted/20"
           />
         </div>

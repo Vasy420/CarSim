@@ -893,77 +893,147 @@ export default function WelcomePage({ onStart }) {
       simResizeHandler = simResize;
       window.addEventListener('resize', simResizeHandler);
 
-      const cars = Array.from({ length: 6 }, (_, i) => ({
-        x: W * (0.35 + Math.random() * 0.3), y: H * (0.4 + Math.random() * 0.3),
-        angle: Math.random() * Math.PI * 2, speed: 0.8 + Math.random() * 0.6,
-        color: ['#5b8dee','#9373e8','#2ec4a3','#e8a83a','#e07844','#c47fef'][i]
+      // Preview cars matching real project — vertical road, north-bound
+      let scrollY = 0;
+      const aiCars = Array.from({ length: 4 }, (_, i) => ({
+        lane: i % 3, color: ['#00ffff','#00e6ff','#33ffff','#66ffff'][i],
+        yOff: i * 60, speed: 1.8
+      }));
+      const trafficCars = Array.from({ length: 5 }, (_, i) => ({
+        lane: Math.floor(Math.random()*3), color: ['#ff00ff','#ff0080','#8000ff'][i%3],
+        yOff: 200 + i * 180, speed: 1.0
       }));
 
       const drawRoad = () => {
-        const g = ctx.createLinearGradient(0,0,0,H);
-        g.addColorStop(0,'#060b18'); g.addColorStop(1,'#030710');
-        ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-        const rW = W*0.55, vX = W*0.5, vY = H*0.38;
-        ctx.beginPath(); ctx.moveTo(vX-5,vY); ctx.lineTo(vX+5,vY); ctx.lineTo(W*0.5+rW*0.5,H); ctx.lineTo(W*0.5-rW*0.5,H); ctx.closePath();
-        const rg = ctx.createLinearGradient(0,vY,0,H); rg.addColorStop(0,'#0b1220'); rg.addColorStop(1,'#0f1930');
-        ctx.fillStyle = rg; ctx.fill();
-        ctx.beginPath(); ctx.moveTo(vX+5,vY); ctx.lineTo(W*0.5+rW*0.5,H); ctx.strokeStyle='rgba(91,141,238,0.18)'; ctx.lineWidth=1.5; ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(vX-5,vY); ctx.lineTo(W*0.5-rW*0.5,H); ctx.stroke();
-        for (let i = 0; i < 12; i++) {
-          const p = (i/12 + (t*0.002)%(1/12))%1, y = vY+(H-vY)*p, sp = (y-vY)/(H-vY);
-          ctx.beginPath(); ctx.moveTo(vX-sp*rW*0.17,y); ctx.lineTo(vX+sp*rW*0.17,y);
-          ctx.strokeStyle=`rgba(255,255,255,${0.04+sp*0.09})`; ctx.lineWidth=1.5+sp*3; ctx.stroke();
+        // Dark cyber background
+        ctx.fillStyle = '#050810'; ctx.fillRect(0,0,W,H);
+        const roadW = W * 0.38;
+        const cx = W * 0.55;
+        const laneW = roadW / 3;
+        // Road body
+        ctx.fillStyle = 'rgba(30,30,40,0.95)';
+        ctx.fillRect(cx - roadW/2, 0, roadW, H);
+        // Lane dashes (animated scroll)
+        ctx.strokeStyle = 'rgba(0,255,255,0.3)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([18, 18]);
+        for (let lane = 1; lane < 3; lane++) {
+          const lx = cx - roadW/2 + lane * laneW;
+          ctx.lineDashOffset = -scrollY;
+          ctx.beginPath();
+          ctx.moveTo(lx, 0); ctx.lineTo(lx, H); ctx.stroke();
         }
+        ctx.setLineDash([]); ctx.lineDashOffset = 0;
+        // Cyan glowing borders
+        ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 4;
+        ctx.shadowBlur = 18; ctx.shadowColor = '#00ffff';
+        ctx.beginPath(); ctx.moveTo(cx - roadW/2, 0); ctx.lineTo(cx - roadW/2, H); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx + roadW/2, 0); ctx.lineTo(cx + roadW/2, H); ctx.stroke();
+        ctx.shadowBlur = 0;
+        return { cx, roadW, laneW };
       };
 
-      const drawCar = c => {
-        ctx.save(); ctx.translate(c.x,c.y); ctx.rotate(c.angle);
-        const gw = ctx.createRadialGradient(0,0,0,0,0,16); gw.addColorStop(0,c.color+'33'); gw.addColorStop(1,'transparent');
-        ctx.fillStyle=gw; ctx.beginPath(); ctx.arc(0,0,16,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle=c.color; ctx.beginPath(); ctx.roundRect(-10,-5,20,10,3); ctx.fill();
-        ctx.fillStyle='rgba(255,255,255,0.85)';
-        ctx.beginPath(); ctx.arc(10,-3,1.8,0,Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(10, 3,1.8,0,Math.PI*2); ctx.fill();
+      const carPos = (c, info) => {
+        const x = info.cx - info.roadW/2 + (c.lane + 0.5) * info.laneW;
+        // Scroll-based loop: cars move north (top of canvas)
+        const y = ((H + 100) - ((scrollY * c.speed + c.yOff) % (H + 200))) - 50;
+        return { x, y };
+      };
+
+      const drawCar = (c, info, isAI) => {
+        const { x, y } = carPos(c, info);
+        ctx.save();
+        ctx.translate(x, y);
+        // Body
+        ctx.fillStyle = c.color;
+        ctx.shadowBlur = isAI ? 16 : 8;
+        ctx.shadowColor = c.color;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(-9, -16, 18, 32, 4);
+        else ctx.rect(-9, -16, 18, 32);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        // Windshield
+        ctx.fillStyle = 'rgba(255,255,255,0.25)';
+        ctx.fillRect(-7, -12, 14, 6);
         ctx.restore();
-        for (let a=-Math.PI/3; a<=Math.PI/3; a+=Math.PI/6) {
-          const sa=c.angle+a, len=38+Math.random()*18;
-          ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.lineTo(c.x+Math.cos(sa)*len,c.y+Math.sin(sa)*len);
-          ctx.strokeStyle=c.color+'28'; ctx.lineWidth=0.7; ctx.stroke();
-          ctx.beginPath(); ctx.arc(c.x+Math.cos(sa)*len,c.y+Math.sin(sa)*len,1.8,0,Math.PI*2);
-          ctx.fillStyle=c.color+'55'; ctx.fill();
+        // Sensor rays for AI cars
+        if (isAI) {
+          const angles = [0, Math.PI/4, -Math.PI/4, Math.PI/2, -Math.PI/2];
+          for (const a of angles) {
+            const ex = x + Math.sin(a) * 50;
+            const ey = y - Math.cos(a) * 50;
+            ctx.beginPath();
+            ctx.moveTo(x, y); ctx.lineTo(ex, ey);
+            ctx.strokeStyle = 'rgba(0,255,255,0.25)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
         }
       };
 
       const updateCars = () => {
-        cars.forEach(c => {
-          c.angle += (Math.random()-0.5)*0.04;
-          c.x += Math.cos(c.angle)*c.speed; c.y += Math.sin(c.angle)*c.speed;
-          if (c.x<W*0.2) c.x=W*0.8; if (c.x>W*0.8) c.x=W*0.2;
-          if (c.y<H*0.45) c.y=H*0.85; if (c.y>H*0.9) c.y=H*0.45;
-        });
+        scrollY += 1.4;
       };
 
+      // Neural network overlay matching real project (8 → 8 → 3)
       const drawNet = () => {
-        const layers=[5,6,6,3], sX=W*0.03, sY=H*0.15, lW=28, lH=22, nodes=[];
-        layers.forEach((n,li) => {
+        const sX = W * 0.04, sY = H * 0.12;
+        const layers = [8, 8, 3];
+        const labels = ['Inputs','Hidden','Outputs'];
+        const lW = 50, lH = 18;
+        const nodes = [];
+        layers.forEach((n, li) => {
           nodes.push([]);
-          for (let ni=0; ni<n; ni++) {
-            const x=sX+li*lW, y=sY+(ni-(n-1)/2)*lH; nodes[li].push({x,y});
-            ctx.beginPath(); ctx.arc(x,y,3.2,0,Math.PI*2);
-            ctx.fillStyle=`rgba(91,141,238,${0.25+Math.sin(t*0.05+li+ni)*0.5+0.5*0.65})`; ctx.fill();
+          const ySpacing = lH;
+          for (let ni = 0; ni < n; ni++) {
+            const x = sX + li * lW;
+            const y = sY + (ni - (n-1)/2) * ySpacing;
+            nodes[li].push({ x, y });
           }
         });
-        for (let li=0; li<nodes.length-1; li++) {
-          nodes[li].forEach(a => nodes[li+1].forEach(b => {
-            ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
-            ctx.strokeStyle=`rgba(147,115,232,${(Math.sin(t*0.03+a.x+b.y)*0.5+0.5)*0.2})`; ctx.lineWidth=0.7; ctx.stroke();
+        // Connections
+        for (let li = 0; li < nodes.length - 1; li++) {
+          nodes[li].forEach((a, ai) => nodes[li+1].forEach((b, bi) => {
+            const w = Math.sin(t * 0.03 + ai + bi);
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+            ctx.strokeStyle = w > 0
+              ? `rgba(0,255,255,${0.08 + Math.abs(w) * 0.18})`
+              : `rgba(255,0,128,${0.08 + Math.abs(w) * 0.18})`;
+            ctx.lineWidth = 0.6;
+            ctx.stroke();
           }));
         }
+        // Nodes
+        layers.forEach((n, li) => {
+          for (let ni = 0; ni < n; ni++) {
+            const { x, y } = nodes[li][ni];
+            const act = (Math.sin(t * 0.05 + li * 2 + ni) * 0.5 + 0.5);
+            ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(0,255,255,${0.3 + act * 0.6})`;
+            ctx.shadowBlur = 6; ctx.shadowColor = '#00ffff';
+            ctx.fill();
+            ctx.shadowBlur = 0;
+          }
+        });
+        // Layer labels
+        ctx.fillStyle = 'rgba(0,255,255,0.7)';
+        ctx.font = '8px monospace';
+        ctx.textAlign = 'center';
+        layers.forEach((_, li) => {
+          ctx.fillText(labels[li], sX + li * lW, sY - (lH * 4.5));
+        });
       };
 
       const sLoop = () => {
         t++; frame++; simResize();
-        drawRoad(); drawNet(); updateCars(); cars.forEach(c => drawCar(c));
+        const info = drawRoad();
+        updateCars();
+        // Draw traffic (purple) first, then AI cars (cyan) on top
+        trafficCars.forEach(c => drawCar(c, info, false));
+        aiCars.forEach(c => drawCar(c, info, true));
+        drawNet();
         if (frame%8===0) {
           score = Math.min(9999, score+Math.floor(Math.random()*15+5));
           const s=document.getElementById('hud-score'), sp=document.getElementById('hud-speed');

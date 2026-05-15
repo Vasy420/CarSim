@@ -14,7 +14,7 @@ function App() {
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [populationSize, setPopulationSize] = useState(100);
   const [showSensors, setShowSensors] = useState(true);
-  const [showNetwork, setShowNetwork] = useState(false);
+  const [showNetwork, setShowNetwork] = useState(true);
   const [controlMode, setControlMode] = useState('AI_AUTO'); // 'MANUAL', 'AI_AUTO', 'AI_ASSIST'
   const [difficulty, setDifficulty] = useState('medium'); // 'easy' | 'medium' | 'hard'
   // Hard = old medium (80). New medium = lighter (50). Easy unchanged (40).
