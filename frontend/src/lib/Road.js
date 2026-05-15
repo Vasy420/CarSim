@@ -9,6 +9,77 @@ export class Road {
     this.waypoints = this.smoothPath(ctrl, 12);
     this.borders = this.generateBorders();
     this.forkY = null; // set when a fork exists
+    this.intersections = [];
+    this.aiOnlyBorders = [];     // damage/sensor only — never drawn
+    this.decorativeBorders = []; // drawn — invisible to AI sensors/damage
+  }
+
+  // Precise vertical clip — keeps portions of seg OUTSIDE [yLow, yHigh]
+  _clipSegmentVertical(seg, yLow, yHigh) {
+    const [p1, p2] = seg;
+    const y1 = p1.y, y2 = p2.y;
+    const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+    if (minY >= yLow && maxY <= yHigh) return [];
+    if (maxY <= yLow || minY >= yHigh) return [seg];
+
+    const ts = [0, 1];
+    for (const yb of [yLow, yHigh]) {
+      if ((y1 < yb && y2 > yb) || (y1 > yb && y2 < yb)) {
+        ts.push((yb - y1) / (y2 - y1));
+      }
+    }
+    ts.sort((a, b) => a - b);
+
+    const out = [];
+    for (let i = 0; i < ts.length - 1; i++) {
+      const tA = ts[i], tB = ts[i + 1];
+      const midY = y1 + ((tA + tB) / 2) * (y2 - y1);
+      if (midY < yLow || midY > yHigh) {
+        out.push([
+          { x: p1.x + tA * (p2.x - p1.x), y: y1 + tA * (y2 - y1) },
+          { x: p1.x + tB * (p2.x - p1.x), y: y1 + tB * (y2 - y1) }
+        ]);
+      }
+    }
+    return out;
+  }
+
+  // Add perpendicular cross-roads at given y positions.
+  // Each intersection: 300×300 square opening in main road; cross-road borders extend ±extent.
+  addIntersections(yPositions, halfH = 150, halfW = 150, extent = 800) {
+    const halfMain = this.width / 2;
+
+    // Precise clip of main borders for each intersection y range
+    for (const yp of yPositions) {
+      const yLow = yp - halfH, yHigh = yp + halfH;
+      const next = [];
+      for (const seg of this.borders) {
+        next.push(...this._clipSegmentVertical(seg, yLow, yHigh));
+      }
+      this.borders = next;
+    }
+
+    for (const yp of yPositions) {
+      // Use curved road center at this y so intersection aligns with road
+      const centers = this.getLaneCenterAt(yp);
+      const cx = (centers[0] + centers[centers.length - 1]) / 2;
+      this.intersections.push({ x: cx, y: yp, halfW, halfH, extent });
+
+      // Cross arm walls (top/bot + far-end) — drawn cyan, NOT in AI sensor/damage
+      this.decorativeBorders.push(
+        [ { x: cx - halfMain - extent, y: yp - halfH }, { x: cx - halfMain, y: yp - halfH } ],
+        [ { x: cx - halfMain - extent, y: yp + halfH }, { x: cx - halfMain, y: yp + halfH } ],
+        [ { x: cx + halfMain, y: yp - halfH }, { x: cx + halfMain + extent, y: yp - halfH } ],
+        [ { x: cx + halfMain, y: yp + halfH }, { x: cx + halfMain + extent, y: yp + halfH } ],
+        [ { x: cx - halfMain - extent, y: yp - halfH }, { x: cx - halfMain - extent, y: yp + halfH } ],
+        [ { x: cx + halfMain + extent, y: yp - halfH }, { x: cx + halfMain + extent, y: yp + halfH } ]
+      );
+      // Inner walls inside intersection — AI damage/sensor only, not drawn
+      this.aiOnlyBorders.push(
+        [ { x: cx - halfMain, y: yp - halfH }, { x: cx - halfMain, y: yp + halfH } ],
+        [ { x: cx + halfMain, y: yp - halfH }, { x: cx + halfMain, y: yp + halfH } ]
+      );
+    }
   }
 
   catmullRom(p0, p1, p2, p3, t) {
@@ -108,13 +179,12 @@ export class Road {
 
     const branchW   = 120;
     const gap       = 60;
-    const branchLen = 100000; // extend far enough that cars never escape
+    const branchLen = 100000;
 
     const leftCX  = forkX - branchW / 2 - gap / 2;
     const rightCX = forkX + branchW / 2 + gap / 2;
     const halfB   = branchW / 2;
 
-    // Store for rendering
     this.forkBranches = [
       { cx: leftCX,  y: forkY, width: branchW, len: branchLen },
       { cx: rightCX, y: forkY, width: branchW, len: branchLen },
@@ -126,19 +196,14 @@ export class Road {
       baseY: forkY
     };
 
-    // ── Left branch borders ──────────────────────────────────
     this.borders.push(
       [ { x: leftCX - halfB, y: forkY }, { x: leftCX - halfB, y: forkY - branchLen } ],
       [ { x: leftCX + halfB, y: forkY }, { x: leftCX + halfB, y: forkY - branchLen } ]
     );
-
-    // ── Right branch borders ─────────────────────────────────
     this.borders.push(
       [ { x: rightCX - halfB, y: forkY }, { x: rightCX - halfB, y: forkY - branchLen } ],
       [ { x: rightCX + halfB, y: forkY }, { x: rightCX + halfB, y: forkY - branchLen } ]
     );
-
-    // ── Island funnel ────────────────────────────────────────
     this.borders.push(
       [ { x: forkX, y: forkY - 120 }, { x: leftCX  + halfB, y: forkY } ],
       [ { x: forkX, y: forkY - 120 }, { x: rightCX - halfB, y: forkY } ]

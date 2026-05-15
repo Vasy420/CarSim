@@ -25,6 +25,14 @@ export class TrafficLight {
     return this.state === 'red' || this.state === 'yellow';
   }
 
+  // Frames until light next becomes green
+  framesUntilGreen() {
+    const cycle = this.greenTime + this.yellowTime + this.redTime;
+    const t = this.timer % cycle;
+    if (t < this.greenTime) return 0;
+    return cycle - t;
+  }
+
   // Returns stop-line as a road-border-compatible segment [p1, p2]
   // Always horizontal so the y-based stop check in Car.js is reliable
   getStopLine() {

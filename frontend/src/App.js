@@ -16,7 +16,9 @@ function App() {
   const [showSensors, setShowSensors] = useState(true);
   const [showNetwork, setShowNetwork] = useState(false);
   const [controlMode, setControlMode] = useState('AI_AUTO'); // 'MANUAL', 'AI_AUTO', 'AI_ASSIST'
-  const [trafficDensity, setTrafficDensity] = useState(150); // 0-300%
+  const [difficulty, setDifficulty] = useState('medium'); // 'easy' | 'medium' | 'hard'
+  // Hard = old medium (80). New medium = lighter (50). Easy unchanged (40).
+  const trafficDensity = difficulty === 'easy' ? 40 : difficulty === 'hard' ? 80 : 50;
   const [modelManagerOpen, setModelManagerOpen] = useState(false);
   const [stats, setStats] = useState({
     generation: 0,
@@ -68,7 +70,7 @@ function App() {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-glow-cyan tracking-tight">
-                  Neural Car Simulator
+                  Car Sim
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   AI-Powered Autonomous Driving Evolution
@@ -111,6 +113,8 @@ function App() {
               controlMode={controlMode}
               onControlModeChange={handleControlModeChange}
               onOpenModelManager={() => setModelManagerOpen(true)}
+              difficulty={difficulty}
+              onDifficultyChange={setDifficulty}
             />
             <StatsPanel stats={stats} />
           </div>

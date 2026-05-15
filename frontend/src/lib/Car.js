@@ -10,7 +10,7 @@ export class Car {
 
     this.speed = 0;
     this.acceleration = 0.2;
-    this.maxSpeed = controlType === 'TRAFFIC' ? 2 : 3;
+    this.maxSpeed = (controlType === 'TRAFFIC' || controlType === 'CROSS_TRAFFIC') ? 2 : 3;
     this.friction = 0.05;
     this.angle = 0;
     this.angleSpeed = 0.03;
@@ -81,6 +81,13 @@ export class Car {
       if (this.controlType === 'AI') {
         this.updateSensors(roadBorders, traffic, stopLines);
         this.aiControl();
+        // Forward collision auto-brake: only front sensor (idx 0) — same lane only
+        const frontReading = this.sensorReadings[0];
+        if (frontReading && frontReading.distance > 0.7) {
+          // 0.7 → cap=maxSpeed, 0.95+ → cap=0
+          const t = Math.max(0, 1 - (frontReading.distance - 0.7) / 0.25);
+          this.speed = Math.min(this.speed, t * this.maxSpeed);
+        }
         // Hard stop at red lines BEFORE move so speed*mult can't overshoot line
         const stopZone = 150;
         const hardStopAt = 25;
@@ -113,11 +120,43 @@ export class Car {
         this.aiAssistControl();
         this.calculateCollisionProximity();
         this.calculateSafeDirection();
+      } else if (this.controlType === 'CROSS_TRAFFIC') {
+        // Horizontal motion. Hard-stop at crossStopX when set (cross light red).
+        const dir = this.crossDir || 1;
+        let allowed = this.maxSpeed;
+        if (this.crossStopX != null) {
+          const dx = dir === 1 ? this.crossStopX - this.x : this.x - this.crossStopX;
+          if (dx > 0 && dx < 150) {
+            allowed = dx <= 25 ? 0 : ((dx - 25) / (150 - 25)) * this.maxSpeed;
+          }
+        }
+        // Forward gap check: don't rear-end same-direction cross car in same y-lane
+        for (const other of traffic) {
+          if (other === this || other.damaged) continue;
+          if (other.controlType !== 'CROSS_TRAFFIC') continue;
+          if ((other.crossDir || 1) !== dir) continue;
+          if (Math.abs(other.y - this.y) > 25) continue;
+          const ahead = dir === 1 ? (other.x > this.x) : (other.x < this.x);
+          const gap = Math.abs(other.x - this.x);
+          if (ahead && gap < 60) { allowed = 0; break; }
+          else if (ahead && gap < 120) { allowed = Math.min(allowed, other.speed); }
+        }
+        this.speed = allowed;
+        this.x += dir * this.speed * speedMultiplier;
       } else if (this.controlType === 'TRAFFIC') {
         // Slow/stop at red stop lines within 80 units ahead
         let shouldStop = false;
         for (const line of stopLines) {
           if (line[0].y < this.y && this.y - line[0].y < 80) {
+            shouldStop = true;
+            break;
+          }
+        }
+        // Forward gap check — don't rear-end same-lane traffic ahead
+        for (const other of traffic) {
+          if (other === this || other.damaged) continue;
+          if (other.controlType !== 'TRAFFIC') continue;
+          if (other.y < this.y && this.y - other.y < 80 && Math.abs(other.x - this.x) < 35) {
             shouldStop = true;
             break;
           }
@@ -142,6 +181,9 @@ export class Car {
       // Check collisions
       this.damaged = this.assessDamage(roadBorders, traffic);
 
+      // Finish line — cars past course end (fork is at -4800, branches stretch beyond)
+      if (this.controlType === 'AI' && this.y < -8000) this.damaged = true;
+
       // Detect car legitimately stopped at red light (line within 120 ahead AND in x range)
       let nearRedLine = false;
       for (const line of stopLines) {
@@ -156,10 +198,11 @@ export class Car {
         this.redWaitFrames = (this.redWaitFrames || 0) + speedMultiplier;
       }
 
-      // Kill crawlers — exclude time spent waiting at red lights
+      // Kill crawlers — exclude time spent waiting at red lights. Threshold relaxed so
+      // cars queued behind others at red (not exactly at line) don't all die at once.
       if (this.controlType === 'AI' && this.timeAlive > 150) {
         const activeTime = this.timeAlive - (this.redWaitFrames || 0);
-        if (activeTime > 50 && this.distanceTraveled / activeTime < 0.7) {
+        if (activeTime > 50 && this.distanceTraveled / activeTime < 0.3) {
           this.damaged = true;
         }
       }
@@ -451,9 +494,11 @@ export class Car {
       }
     }
 
-    // Check traffic
+    // Check traffic — same-type traffic (TRAFFIC↔TRAFFIC, CROSS↔CROSS) don't damage each other
     for (const car of traffic) {
       if (car.damaged) continue;
+      if (this.controlType === 'TRAFFIC' && car.controlType === 'TRAFFIC') continue;
+      if (this.controlType === 'CROSS_TRAFFIC' && car.controlType === 'CROSS_TRAFFIC') continue;
       const otherPolygon = this.getCarPolygon(car);
       if (this.polygonsIntersect(polygon, otherPolygon)) {
         return true;

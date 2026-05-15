@@ -31,6 +31,8 @@ export const Simulator = ({
   const prevBrainRef = useRef(null);
   const evolutionFlashRef = useRef(0);
   const trafficLightsRef = useRef([]);
+  const crossTrafficRef = useRef([]);
+  const crossStateRef = useRef([]);
 
   // Refs for props to access fresh values inside animation loop
   const isRunningRef = useRef(isRunning);
@@ -134,6 +136,11 @@ export const Simulator = ({
     // Initialize road
     const road = new Road(canvas.width);
     road.addFork();
+    // Intersections placed only on STRAIGHT sections of road for clean alignment:
+    //  -400  → straight at cx (waypoints 0 → -700)
+    //  -2200 → straight at cx-180 (waypoints -1900 → -2600)
+    //  -4400 → straight at cx (waypoints -4000 → -4800)
+    road.addIntersections([-400, -2200, -4400]);
     roadRef.current = road;
 
     // Initialize genetic algorithm
@@ -163,6 +170,8 @@ export const Simulator = ({
     playerCarRef.current = null;
     trafficRef.current = [];
     trafficLightsRef.current = [];
+    crossTrafficRef.current = [];
+    crossStateRef.current = [];
     cameraYRef.current = 0;
     cameraXRef.current = 0;
 
@@ -186,27 +195,43 @@ export const Simulator = ({
 
   const initializeTrafficLights = () => {
     const road = roadRef.current;
-    const lightYPositions = [-600, -1500, -2600];
-    trafficLightsRef.current = lightYPositions.map((y, idx) => {
+    // Place main lights at south edge of each intersection (entry for upward cars)
+    trafficLightsRef.current = road.intersections.map((inter, idx) => {
+      const y = inter.y + inter.halfH;
       const centers = road.getLaneCenterAt(y);
       const cx = (centers[0] + centers[centers.length - 1]) / 2;
       const { nx, ny } = road.getRoadPerpAt(y);
       const timings = [[300, 200], [250, 280], [280, 240]][idx];
       return new TrafficLight(cx, y, road.width, timings[0], timings[1], nx, ny);
     });
+    // Per-intersection cross-traffic state: alternates direction each red cycle
+    crossStateRef.current = trafficLightsRef.current.map(() => ({
+      direction: 1, prevRed: false, spawnTimer: 0
+    }));
   };
 
   const initializeTraffic = () => {
     const road = roadRef.current;
 
-    // Calculate traffic count based on density (0-300%)
+    // Use ref so live value always wins — closure-captured trafficDensity can be stale in animate loop
     const baseDensity = 50;
-    const trafficCount = Math.floor(baseDensity * (trafficDensity / 100));
+    const density = trafficDensityRef.current ?? trafficDensity;
+    const trafficCount = Math.floor(baseDensity * (density / 100));
 
     trafficRef.current = [];
     const trafficColors = ['#ff00ff', '#ff0080', '#8000ff'];
+    // Distribute cars randomly within fixed span ahead of AI cars (or camera as fallback)
+    let refY = cameraYRef.current;
+    if (carsRef.current.length > 0) {
+      const alive = carsRef.current.find(c => !c.damaged);
+      if (alive) refY = alive.y;
+    }
+    const baseY = refY - 100;
+    const span = 5000;
+    const cellH = span / Math.max(1, trafficCount);
     for (let i = 0; i < trafficCount; i++) {
-      const y = -200 - i * 400;
+      // Stratified: each car in its own cell with jitter — avoids clumping
+      const y = baseY - (i + Math.random()) * cellH;
       const centers = road.getLaneCenterAt(y);
       const lane = Math.floor(Math.random() * centers.length);
       const color = trafficColors[Math.floor(Math.random() * trafficColors.length)];
@@ -234,15 +259,91 @@ export const Simulator = ({
       if (light.isRed()) activeStopLines.push(light.getStopLine());
     }
 
+    // Cross-traffic spawn manager (per intersection)
+    const halfMain = road.width / 2;
+    for (let i = 0; i < trafficLightsRef.current.length; i++) {
+      const light = trafficLightsRef.current[i];
+      const inter = road.intersections[i];
+      const state = crossStateRef.current[i];
+      if (!inter || !state) continue;
+      const isRed = light.isRed();
+      if (isRed && !state.prevRed) {
+        state.direction *= -1; // flip each red phase
+        state.spawnTimer = 999; // immediate spawn allowed
+      }
+      state.prevRed = isRed;
+
+      if (isRed) {
+        state.spawnTimer += speedRef.current;
+        // Block spawn only if pedestrian car STRICTLY inside intersection square
+        // (queued cars sit south of stop line — outside box — so won't block)
+        let pedInIntersection = false;
+        for (const t of trafficRef.current) {
+          if (Math.abs(t.y - inter.y) < inter.halfH &&
+              Math.abs(t.x - inter.x) < halfMain) {
+            pedInIntersection = true;
+            break;
+          }
+        }
+        // Stop spawning ~80 frames before green so cars clear in time
+        if (!pedInIntersection && light.framesUntilGreen() > 80 && state.spawnTimer > 35) {
+          const dir = state.direction;
+          // 2 sub-lanes per direction. L→R: upper half; R→L: lower half
+          const laneChoices = dir === 1
+            ? [-inter.halfH * 0.66, -inter.halfH * 0.22]
+            : [ inter.halfH * 0.22,  inter.halfH * 0.66];
+          const laneY = inter.y + laneChoices[Math.floor(Math.random() * laneChoices.length)];
+          const spawnX = dir === 1
+            ? inter.x - halfMain - inter.extent + 40
+            : inter.x + halfMain + inter.extent - 40;
+          const car = new Car(spawnX, laneY, 30, 50, 'CROSS_TRAFFIC', '#ffaa00');
+          car.crossDir = dir;
+          car.interIdx = i;
+          car.angle = dir === 1 ? -Math.PI / 2 : Math.PI / 2;
+          crossTrafficRef.current.push(car);
+          state.spawnTimer = 0;
+        }
+      }
+    }
+
+    // Set crossStopX per car based on its main light state, then update (with peers for gap check)
+    for (const car of crossTrafficRef.current) {
+      const mainLight = trafficLightsRef.current[car.interIdx];
+      const inter = road.intersections[car.interIdx];
+      if (mainLight && inter && !mainLight.isRed()) {
+        car.crossStopX = car.crossDir === 1 ? inter.x - halfMain : inter.x + halfMain;
+      } else {
+        car.crossStopX = null;
+      }
+      car.update([], crossTrafficRef.current, speedRef.current, []);
+    }
+    crossTrafficRef.current = crossTrafficRef.current.filter(c => {
+      if (c.damaged) return false;
+      // Remove when past opposite end
+      for (const inter of road.intersections) {
+        if (Math.abs(c.y - inter.y) < inter.halfH + 20) {
+          const leftEnd = inter.x - halfMain - inter.extent;
+          const rightEnd = inter.x + halfMain + inter.extent;
+          if (c.x < leftEnd - 50 || c.x > rightEnd + 50) return false;
+        }
+      }
+      return true;
+    });
+
     // Update cars
     const carCount = carsRef.current.length;
     for (let i = 0; i < carCount; i++) {
       const car = carsRef.current[i];
-      // Red lines = damage border (kill if pass through) + sensor barrier + hard-stop logic
-      const aiBorders = activeStopLines.length
-        ? [...road.borders, ...activeStopLines]
-        : road.borders;
-      car.update(aiBorders, trafficRef.current, speedRef.current, activeStopLines);
+      // AI damage/sensor borders: visible borders + invisible inner walls + active red stop lines
+      const aiBorders = [
+        ...road.borders,
+        ...road.aiOnlyBorders,
+        ...activeStopLines
+      ];
+      const allTraffic = crossTrafficRef.current.length
+        ? [...trafficRef.current, ...crossTrafficRef.current]
+        : trafficRef.current;
+      car.update(aiBorders, allTraffic, speedRef.current, activeStopLines);
 
       if (!car.damaged) {
         const centers = road.getLaneCenterAt(car.y);
@@ -257,7 +358,7 @@ export const Simulator = ({
     const laneWidth = road.width / road.laneCount;
     for (let i = 0; i < trafficCount; i++) {
       const car = trafficRef.current[i];
-      car.update([], [], speedRef.current, activeStopLines);
+      car.update([], trafficRef.current, speedRef.current, activeStopLines);
 
       // Nudge traffic cars to follow road curves
       if (car.laneIndex !== undefined) {
@@ -270,13 +371,16 @@ export const Simulator = ({
       const perp = road.getRoadPerpAt(car.y);
       car.angle = Math.atan2(-perp.ny, perp.nx);
 
-      // Respawn traffic at top of road
-      if (car.y > canvas.height + 100) {
-        const spawnY = -100;
-        const centers = road.getLaneCenterAt(spawnY);
+      // Respawn far-off cars AHEAD of the best AI (so they never appear from behind)
+      if (car.y < cameraYRef.current - 2500) {
+        let aheadY = cameraYRef.current - 4000;
+        if (bestCarRef.current && !bestCarRef.current.damaged) {
+          aheadY = bestCarRef.current.y - 3500 - Math.random() * 1500;
+        }
+        const centers = road.getLaneCenterAt(aheadY);
         const lane = Math.floor(Math.random() * centers.length);
         car.x = centers[lane];
-        car.y = spawnY;
+        car.y = aheadY;
         car.speed = car.maxSpeed;
         car.laneIndex = lane;
       }
@@ -346,8 +450,9 @@ export const Simulator = ({
         car.speed = 0;
       }
 
-      // Reset traffic
+      // Reset traffic + cross traffic
       initializeTraffic();
+      crossTrafficRef.current = [];
     }
 
     // Reset player car in manual/assist mode
@@ -370,6 +475,7 @@ export const Simulator = ({
       playerCarRef.current.speed = 0;
 
       initializeTraffic();
+      crossTrafficRef.current = [];
     }
 
     // Update stats (throttled to every 10 frames to prevent UI lag)
@@ -412,9 +518,79 @@ export const Simulator = ({
       light.draw(ctx);
     }
 
-    // Draw traffic (batched)
-    for (let i = 0; i < trafficCount; i++) {
+    // Draw cross-direction lights (opposite phase of main)
+    const halfMainDraw = road.width / 2;
+    for (let i = 0; i < road.intersections.length; i++) {
+      const inter = road.intersections[i];
+      const mainLight = trafficLightsRef.current[i];
+      if (!mainLight) continue;
+      const crossRed = !mainLight.isRed();
+      const color = crossRed ? '#ff2244' : '#00ff44';
+
+      // West-side cross light (for L→R cars approaching from west)
+      const wx = inter.x - halfMainDraw - 30;
+      const wy = inter.y - inter.halfH - 30;
+      ctx.strokeStyle = '#666';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(wx, wy);
+      ctx.lineTo(wx, wy + 30);
+      ctx.stroke();
+      ctx.fillStyle = '#111';
+      ctx.fillRect(wx - 10, wy - 30, 20, 30);
+      ctx.beginPath();
+      ctx.arc(wx, wy - 15, 7, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = color;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // East-side cross light
+      const ex = inter.x + halfMainDraw + 30;
+      const ey = inter.y - inter.halfH - 30;
+      ctx.strokeStyle = '#666';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(ex, ey);
+      ctx.lineTo(ex, ey + 30);
+      ctx.stroke();
+      ctx.fillStyle = '#111';
+      ctx.fillRect(ex - 10, ey - 30, 20, 30);
+      ctx.beginPath();
+      ctx.arc(ex, ey - 15, 7, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = color;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Cross stop lines (vertical, dashed when cross red)
+      if (crossRed) {
+        ctx.strokeStyle = 'rgba(255, 34, 68, 0.8)';
+        ctx.lineWidth = 4;
+        ctx.setLineDash([12, 8]);
+        // West stop line (L→R cars stop here)
+        ctx.beginPath();
+        ctx.moveTo(inter.x - halfMainDraw, inter.y - inter.halfH);
+        ctx.lineTo(inter.x - halfMainDraw, inter.y + inter.halfH);
+        ctx.stroke();
+        // East stop line (R→L cars stop here)
+        ctx.beginPath();
+        ctx.moveTo(inter.x + halfMainDraw, inter.y - inter.halfH);
+        ctx.lineTo(inter.x + halfMainDraw, inter.y + inter.halfH);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    // Draw traffic (use live length — initializeTraffic may have resized array mid-frame)
+    for (let i = 0; i < trafficRef.current.length; i++) {
       trafficRef.current[i].draw(ctx, false);
+    }
+    // Draw cross traffic
+    for (const c of crossTrafficRef.current) {
+      c.draw(ctx, false);
     }
 
     // Draw cars based on mode
@@ -488,6 +664,34 @@ export const Simulator = ({
       ctx.fill();
     }
 
+    // ── 2.5 Fill cross road bodies + intersection squares + cross lane dashes ──
+    if (road.intersections && road.intersections.length) {
+      ctx.fillStyle = 'rgba(30, 30, 40, 0.9)';
+      for (const it of road.intersections) {
+        ctx.fillRect(it.x - half - it.extent, it.y - it.halfH, it.extent, it.halfH * 2);
+        ctx.fillRect(it.x + half, it.y - it.halfH, it.extent, it.halfH * 2);
+        ctx.fillRect(it.x - half, it.y - it.halfH, half * 2, it.halfH * 2);
+      }
+
+      // Cross road lane dashes (3 lanes → 2 dividers at y ± halfH/3)
+      ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([20, 20]);
+      for (const it of road.intersections) {
+        const laneH = it.halfH * 2 / 3;
+        for (let k = 1; k < 3; k++) {
+          const ly = it.y - it.halfH + k * laneH;
+          ctx.beginPath();
+          ctx.moveTo(it.x - half - it.extent, ly);
+          ctx.lineTo(it.x - half, ly);
+          ctx.moveTo(it.x + half, ly);
+          ctx.lineTo(it.x + half + it.extent, ly);
+          ctx.stroke();
+        }
+      }
+      ctx.setLineDash([]);
+    }
+
     // ── 3. Lane dashes along waypoint path ──
     ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)';
     ctx.lineWidth = 2;
@@ -519,6 +723,15 @@ export const Simulator = ({
       ctx.moveTo(border[0].x, border[0].y);
       ctx.lineTo(border[1].x, border[1].y);
       ctx.stroke();
+    }
+    // Decorative borders (cross arm walls) — drawn, but invisible to AI sensors
+    if (road.decorativeBorders) {
+      for (const border of road.decorativeBorders) {
+        ctx.beginPath();
+        ctx.moveTo(border[0].x, border[0].y);
+        ctx.lineTo(border[1].x, border[1].y);
+        ctx.stroke();
+      }
     }
     ctx.shadowBlur = 0;
   };

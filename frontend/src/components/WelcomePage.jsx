@@ -414,7 +414,7 @@ const HTML = `
     <div class="hero-title-wrap">
       <h1 class="hero-fade hero-fade-2 gradient-text title-glow"
           style="font-size:clamp(4rem,9vw,7.5rem);font-weight:900;line-height:0.92;letter-spacing:-0.05em;margin-bottom:28px;">
-        CarSim
+        Car Sim
       </h1>
     </div>
 

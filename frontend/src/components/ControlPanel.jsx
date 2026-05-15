@@ -23,7 +23,9 @@ export const ControlPanel = ({
   onPopulationChange,
   controlMode,
   onControlModeChange,
-  onOpenModelManager
+  onOpenModelManager,
+  difficulty,
+  onDifficultyChange
 }) => {
   return (
     <Card className="border-glow-cyan bg-card/50 backdrop-blur-sm">
@@ -139,6 +141,29 @@ export const ControlPanel = ({
         )}
 
 
+
+        <Separator className="bg-primary/20" />
+
+        {/* Difficulty */}
+        <div>
+          <Label className="text-sm text-muted-foreground mb-3 block">Difficulty</Label>
+          <div className="grid grid-cols-3 gap-2">
+            {['easy', 'medium', 'hard'].map(level => (
+              <Button
+                key={level}
+                onClick={() => onDifficultyChange(level)}
+                variant={difficulty === level ? 'default' : 'outline'}
+                size="sm"
+                className={difficulty === level ? 'bg-primary text-primary-foreground' : 'border-primary/30'}
+              >
+                {level.charAt(0).toUpperCase() + level.slice(1)}
+              </Button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Traffic density: {difficulty === 'easy' ? 'low' : difficulty === 'hard' ? 'high' : 'medium'}
+          </p>
+        </div>
 
         <Separator className="bg-primary/20" />
 
