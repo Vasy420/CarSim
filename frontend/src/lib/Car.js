@@ -22,6 +22,9 @@ export class Car {
     this.laneDeviation = 0;
     this.timeAlive = 0;
     this.stuckFrames = 0;
+    this.redWaitFrames = 0;
+    this.bestY = y;
+    this.noProgressFrames = 0;
     this.prevX = x;
     this.prevY = y;
 
@@ -76,9 +79,28 @@ export class Car {
       this.timeAlive += speedMultiplier;
 
       if (this.controlType === 'AI') {
-        this.move();
         this.updateSensors(roadBorders, traffic, stopLines);
         this.aiControl();
+        // Hard stop at red lines BEFORE move so speed*mult can't overshoot line
+        const stopZone = 150;
+        const hardStopAt = 25;
+        for (const line of stopLines) {
+          const dy = this.y - line[0].y;
+          const minX = Math.min(line[0].x, line[1].x);
+          const maxX = Math.max(line[0].x, line[1].x);
+          if (dy > 0 && dy < stopZone && this.x >= minX && this.x <= maxX) {
+            if (dy <= hardStopAt) {
+              this.speed = 0;
+            } else {
+              // Cap to stop within remaining distance at current mult
+              const safeSpeed = Math.max(0, (dy - hardStopAt) / Math.max(1, speedMultiplier));
+              const rampSpeed = ((dy - hardStopAt) / (stopZone - hardStopAt)) * this.maxSpeed;
+              this.speed = Math.min(this.speed, rampSpeed, safeSpeed);
+            }
+            break;
+          }
+        }
+        this.move();
       } else if (this.controlType === 'MANUAL') {
         this.move();
         this.updateSensors(roadBorders, traffic, stopLines);
@@ -120,18 +142,37 @@ export class Car {
       // Check collisions
       this.damaged = this.assessDamage(roadBorders, traffic);
 
-      // Quick-kill stuck cars so camera doesn't linger on crashed/idle ones
-      if (this.controlType === 'AI') {
-        if (this.speed < 0.2) this.stuckFrames += speedMultiplier;
-        else this.stuckFrames = 0;
-        if (this.stuckFrames > 30) this.damaged = true;
+      // Detect car legitimately stopped at red light (line within 120 ahead AND in x range)
+      let nearRedLine = false;
+      for (const line of stopLines) {
+        const dy = this.y - line[0].y;
+        const minX = Math.min(line[0].x, line[1].x);
+        const maxX = Math.max(line[0].x, line[1].x);
+        if (dy > 0 && dy < 120 && this.x >= minX && this.x <= maxX) {
+          nearRedLine = true; break;
+        }
+      }
+      if (nearRedLine && this.speed < 0.5) {
+        this.redWaitFrames = (this.redWaitFrames || 0) + speedMultiplier;
       }
 
-      // Kill cars with low average speed — catches crawlers that evade the old speed check
+      // Kill crawlers — exclude time spent waiting at red lights
       if (this.controlType === 'AI' && this.timeAlive > 150) {
-        if (this.distanceTraveled / this.timeAlive < 0.7) {
+        const activeTime = this.timeAlive - (this.redWaitFrames || 0);
+        if (activeTime > 50 && this.distanceTraveled / activeTime < 0.7) {
           this.damaged = true;
         }
+      }
+
+      // Kill circling cars — track forward y progress
+      if (this.controlType === 'AI') {
+        if (this.y < this.bestY) {
+          this.bestY = this.y;
+          this.noProgressFrames = 0;
+        } else if (!nearRedLine) {
+          this.noProgressFrames += speedMultiplier;
+        }
+        if (this.noProgressFrames > 120) this.damaged = true;
       }
     }
   }

@@ -238,7 +238,7 @@ export const Simulator = ({
     const carCount = carsRef.current.length;
     for (let i = 0; i < carCount; i++) {
       const car = carsRef.current[i];
-      // Stop lines act as both sensor barriers AND damage walls → strong training signal
+      // Red lines = damage border (kill if pass through) + sensor barrier + hard-stop logic
       const aiBorders = activeStopLines.length
         ? [...road.borders, ...activeStopLines]
         : road.borders;
@@ -333,6 +333,9 @@ export const Simulator = ({
         car.laneDeviation = 0;
         car.timeAlive = 0;
         car.stuckFrames = 0;
+        car.redWaitFrames = 0;
+        car.bestY = 100;
+        car.noProgressFrames = 0;
         car.prevX = startX;
         car.prevY = 100;
 
@@ -356,6 +359,9 @@ export const Simulator = ({
       playerCarRef.current.laneDeviation = 0;
       playerCarRef.current.timeAlive = 0;
       playerCarRef.current.stuckFrames = 0;
+      playerCarRef.current.redWaitFrames = 0;
+      playerCarRef.current.bestY = 100;
+      playerCarRef.current.noProgressFrames = 0;
       playerCarRef.current.prevX = startX;
       playerCarRef.current.prevY = 100;
       playerCarRef.current.x = startX;
