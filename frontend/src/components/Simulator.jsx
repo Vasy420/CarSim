@@ -495,7 +495,7 @@ export const Simulator = ({
     // Set camera to follow best car with smoothed movement (LERP)
     ctx.save();
     if (bestCarRef.current) {
-      const zoom = 0.8;
+      const zoom = 0.7;
       const targetX = bestCarRef.current.x;
       const targetY = bestCarRef.current.y;
 

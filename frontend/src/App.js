@@ -9,7 +9,9 @@ import { toast } from 'sonner';
 import { Brain, Zap } from 'lucide-react';
 
 function App() {
-  const [showWelcome, setShowWelcome] = useState(true);
+  // Detect preview mode from URL (used by welcome page iframe to skip welcome and render full 2D app)
+  const isPreviewMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('preview') === '1';
+  const [mode, setMode] = useState(isPreviewMode ? '2d' : 'welcome'); // 'welcome' | '2d' | '3d'
   const [isRunning, setIsRunning] = useState(true);
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [populationSize, setPopulationSize] = useState(100);
@@ -52,12 +54,77 @@ function App() {
     });
   };
 
-  if (showWelcome) {
-    return <WelcomePage onStart={() => setShowWelcome(false)} />;
+  if (mode === 'welcome') {
+    return (
+      <WelcomePage
+        onStart2D={() => setMode('2d')}
+        onStart3D={() => setMode('3d')}
+      />
+    );
+  }
+
+  if (mode === '3d') {
+    return (
+      <div className="fixed inset-0 bg-black z-50">
+        <button
+          onClick={() => setMode('welcome')}
+          className="absolute top-4 left-4 z-10 px-4 py-2 bg-black/70 backdrop-blur border border-cyan-400/40 text-cyan-300 rounded-lg hover:bg-cyan-400/10 font-mono text-sm"
+        >
+          ← Back to Menu
+        </button>
+        <iframe
+          src="/3d-sim/index.html"
+          title="3D Sim"
+          className="w-full h-full border-0"
+        />
+      </div>
+    );
+  }
+
+  // Stripped 2D preview — no header, no sidebar, no stats, no NN viz. Canvas fills iframe.
+  if (isPreviewMode) {
+    return (
+      <div
+        className="bg-background"
+        style={{
+          width: '100vw',
+          height: '100vh',
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'stretch',
+          justifyContent: 'stretch'
+        }}
+      >
+        {/* Force canvas to fill the iframe (overrides Simulator's maxHeight:800px) */}
+        <style>{`
+          .preview-2d-wrap > div { width: 100%; height: 100%; gap: 0 !important; }
+          .preview-2d-wrap canvas {
+            width: 100% !important;
+            height: 100% !important;
+            max-height: 100vh !important;
+            border-width: 0 !important;
+            border-radius: 0 !important;
+          }
+        `}</style>
+        <div className="preview-2d-wrap" style={{ width: '100%', height: '100%' }}>
+          <Simulator
+            isRunning={isRunning}
+            speedMultiplier={speedMultiplier}
+            populationSize={populationSize}
+            showSensors={showSensors}
+            showNetwork={false}
+            onStatsUpdate={setStats}
+            resetTrigger={resetTrigger}
+            controlMode={controlMode}
+            trafficDensity={trafficDensity}
+          />
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" style={{ zoom: 0.9 }}>
       <Toaster position="top-right" theme="dark" />
 
       {/* Header */}
@@ -79,7 +146,7 @@ function App() {
             </div>
             <div className="flex items-center gap-4">
               <button 
-                onClick={() => setShowWelcome(true)}
+                onClick={() => setMode('welcome')}
                 className="px-4 py-2 rounded-lg bg-secondary/20 border border-secondary/30 text-sm font-medium text-secondary hover:bg-secondary/30 transition-colors"
               >
                 Back to Home

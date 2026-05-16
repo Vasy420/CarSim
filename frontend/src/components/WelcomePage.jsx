@@ -403,7 +403,7 @@ const HTML = `
   <div class="wp-orb wp-orb-3"></div>
   <div class="bg-grid"></div>
 
-  <div style="position:relative;z-index:2;text-align:center;max-width:820px;padding:0 28px;">
+  <div style="position:relative;z-index:2;text-align:center;width:min(64vw,1200px);padding:0 28px;">
     <div class="hero-fade hero-fade-1" style="margin-bottom:28px;">
       <span class="badge-pill glass" style="color:rgba(200,212,245,0.6);">
         <span class="badge-dot"></span>
@@ -423,13 +423,48 @@ const HTML = `
       AI-powered autonomous driving simulation
     </p>
     <p class="hero-fade hero-fade-3"
-       style="font-size:clamp(0.875rem,1.6vw,1rem);color:rgba(180,190,220,0.28);max-width:520px;margin:0 auto 52px;line-height:1.75;font-weight:350;">
+       style="font-size:clamp(0.875rem,1.6vw,1rem);color:rgba(180,190,220,0.28);max-width:520px;margin:0 auto 36px;line-height:1.75;font-weight:350;">
       Train neural networks, evolve intelligent agents, and simulate real-world driving scenarios at scale — all in your browser.
     </p>
 
-    <div class="hero-fade hero-fade-4" style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;">
-      <button class="btn-primary start-sim-btn"><span>&#9654;&nbsp; Start Simulation</span></button>
-      <button class="btn-secondary">View Demo</button>
+    <div class="hero-fade hero-fade-4" style="margin-bottom:24px;">
+      <span style="display:inline-flex;align-items:center;gap:10px;padding:8px 18px;border-radius:999px;background:rgba(0,255,255,0.06);border:1px solid rgba(0,255,255,0.25);color:rgba(180,220,255,0.85);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">
+        <span style="width:6px;height:6px;border-radius:50%;background:#00ffff;box-shadow:0 0 8px #00ffff;"></span>
+        Two Versions Available
+      </span>
+    </div>
+
+    <div class="hero-fade hero-fade-4" style="display:grid;grid-template-columns:1fr 1fr;gap:32px;width:min(64vw,1200px);margin:0 auto;">
+      <button class="version-card start-sim-btn preview-card" data-preview="/previews/2d-car-sim.mp4" style="position:relative;overflow:hidden;cursor:pointer;text-align:left;padding:32px;border-radius:20px;background:linear-gradient(135deg,rgba(0,180,220,0.12),rgba(0,80,140,0.08));border:1px solid rgba(0,255,255,0.3);color:#e8f4ff;backdrop-filter:blur(8px);transition:all 0.25s ease;min-height:220px;">
+        <video class="preview-video" muted loop playsinline preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.3s ease;pointer-events:none;">
+          <source src="/previews/2d-car-sim.mp4" type="video/mp4"/>
+        </video>
+        <div style="position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,15,30,0.55),rgba(0,8,20,0.75));opacity:0;transition:opacity 0.3s ease;pointer-events:none;" class="preview-veil"></div>
+        <div style="position:relative;z-index:1;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <span style="font-size:2.1rem;font-weight:900;line-height:1;">2D</span>
+            <span style="font-size:0.65rem;font-weight:700;color:rgba(0,255,255,0.7);letter-spacing:0.12em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:rgba(0,255,255,0.08);border:1px solid rgba(0,255,255,0.2);">Original</span>
+          </div>
+          <div style="font-size:1.4rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px;">Neural Evolution Lab</div>
+          <div style="font-size:0.92rem;color:rgba(180,200,230,0.65);line-height:1.65;font-weight:350;">Top-down 2D simulator with live NN visualization, genetic algorithm, and traffic intersections.</div>
+          <div style="margin-top:20px;font-size:0.9rem;color:rgba(0,255,255,0.95);font-weight:700;letter-spacing:0.04em;">&#9654; Launch 2D Sim</div>
+        </div>
+      </button>
+      <button class="version-card launch-3d-btn preview-card" data-preview="/previews/3d-car-sim.mp4" style="position:relative;overflow:hidden;cursor:pointer;text-align:left;padding:32px;border-radius:20px;background:linear-gradient(135deg,rgba(180,80,255,0.12),rgba(120,40,220,0.08));border:1px solid rgba(196,128,255,0.3);color:#f4e8ff;backdrop-filter:blur(8px);transition:all 0.25s ease;min-height:220px;">
+        <video class="preview-video" muted loop playsinline preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.3s ease;pointer-events:none;">
+          <source src="/previews/3d-car-sim.mp4" type="video/mp4"/>
+        </video>
+        <div style="position:absolute;inset:0;background:linear-gradient(135deg,rgba(15,0,30,0.55),rgba(8,0,20,0.75));opacity:0;transition:opacity 0.3s ease;pointer-events:none;" class="preview-veil"></div>
+        <div style="position:relative;z-index:1;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <span style="font-size:2.1rem;font-weight:900;line-height:1;">3D</span>
+            <span style="font-size:0.65rem;font-weight:700;color:rgba(196,128,255,0.85);letter-spacing:0.12em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:rgba(196,128,255,0.08);border:1px solid rgba(196,128,255,0.25);">New</span>
+          </div>
+          <div style="font-size:1.4rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px;">Iso Highway Drive</div>
+          <div style="font-size:0.92rem;color:rgba(210,190,235,0.65);line-height:1.65;font-weight:350;">Isometric perspective driving with open-world traffic, missions, fuel, and player-controlled car.</div>
+          <div style="margin-top:20px;font-size:0.9rem;color:rgba(196,128,255,0.95);font-weight:700;letter-spacing:0.04em;">&#9678; Launch 3D Sim</div>
+        </div>
+      </button>
     </div>
 
     <div class="hero-fade hero-fade-4"
@@ -478,61 +513,61 @@ const HTML = `
 
     <div class="feature-card glass reveal reveal-delay-1">
       <div class="icon-wrap" style="background:linear-gradient(138deg,rgba(91,141,238,0.16),rgba(91,141,238,0.04));border:1px solid rgba(91,141,238,0.18);">&#129504;</div>
-      <h3 style="font-size:1.08rem;font-weight:680;margin-bottom:11px;letter-spacing:-0.015em;color:rgba(228,234,255,0.9);">Neural Network Driving</h3>
+      <h3 style="font-size:1.08rem;font-weight:680;margin-bottom:11px;letter-spacing:-0.015em;color:rgba(228,234,255,0.9);">Genetic Evolution</h3>
       <p style="font-size:0.86rem;color:var(--text-secondary);line-height:1.75;font-weight:350;">
-        Deep neural architectures process sensor data in real-time, enabling precise steering, braking, and navigation decisions.
+        100 AI cars per generation. Top 20% selected, elite 10% preserved, rest mutated. Watch the population learn over generations.
       </p>
       <div style="margin-top:28px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-          <span style="font-size:0.68rem;color:var(--text-muted);letter-spacing:0.07em;text-transform:uppercase;font-weight:500;">Model Accuracy</span>
-          <span style="font-size:0.78rem;color:rgba(200,212,240,0.4);font-weight:500;">92%</span>
+          <span style="font-size:0.68rem;color:var(--text-muted);letter-spacing:0.07em;text-transform:uppercase;font-weight:500;">Population</span>
+          <span style="font-size:0.78rem;color:rgba(200,212,240,0.4);font-weight:500;">100 cars</span>
         </div>
-        <div class="stat-bar"><div class="stat-fill" style="background:linear-gradient(90deg,var(--blue),var(--purple));" data-width="92"></div></div>
+        <div class="stat-bar"><div class="stat-fill" style="background:linear-gradient(90deg,var(--blue),var(--purple));" data-width="100"></div></div>
       </div>
     </div>
 
     <div class="feature-card glass reveal reveal-delay-2">
       <div class="icon-wrap" style="background:linear-gradient(138deg,rgba(147,115,232,0.16),rgba(147,115,232,0.04));border:1px solid rgba(147,115,232,0.18);">&#129516;</div>
-      <h3 style="font-size:1.08rem;font-weight:680;margin-bottom:11px;letter-spacing:-0.015em;color:rgba(228,234,255,0.9);">Evolutionary Learning</h3>
+      <h3 style="font-size:1.08rem;font-weight:680;margin-bottom:11px;letter-spacing:-0.015em;color:rgba(228,234,255,0.9);">Live NN Visualization</h3>
       <p style="font-size:0.86rem;color:var(--text-secondary);line-height:1.75;font-weight:350;">
-        NEAT-powered genetic algorithms evolve entire populations of AI drivers across generations, selecting the best survivors.
+        Watch neurons fire in real-time. 8&rarr;8&rarr;3 fixed topology with weight pulse, learning trail, energy particles, and per-gen change log.
       </p>
       <div style="margin-top:28px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-          <span style="font-size:0.68rem;color:var(--text-muted);letter-spacing:0.07em;text-transform:uppercase;font-weight:500;">Evolution Rate</span>
-          <span style="font-size:0.78rem;color:rgba(200,212,240,0.4);font-weight:500;">78%</span>
+          <span style="font-size:0.68rem;color:var(--text-muted);letter-spacing:0.07em;text-transform:uppercase;font-weight:500;">Topology</span>
+          <span style="font-size:0.78rem;color:rgba(200,212,240,0.4);font-weight:500;">8 &rarr; 8 &rarr; 3</span>
         </div>
-        <div class="stat-bar"><div class="stat-fill" style="background:linear-gradient(90deg,var(--purple),#c47fef);" data-width="78"></div></div>
+        <div class="stat-bar"><div class="stat-fill" style="background:linear-gradient(90deg,var(--purple),#c47fef);" data-width="85"></div></div>
       </div>
     </div>
 
     <div class="feature-card glass reveal reveal-delay-3">
       <div class="icon-wrap" style="background:linear-gradient(138deg,rgba(46,196,163,0.16),rgba(46,196,163,0.04));border:1px solid rgba(46,196,163,0.18);">&#9889;</div>
-      <h3 style="font-size:1.08rem;font-weight:680;margin-bottom:11px;letter-spacing:-0.015em;color:rgba(228,234,255,0.9);">Real-time Simulation</h3>
+      <h3 style="font-size:1.08rem;font-weight:680;margin-bottom:11px;letter-spacing:-0.015em;color:rgba(228,234,255,0.9);">Curved Road + Intersections</h3>
       <p style="font-size:0.86rem;color:var(--text-secondary);line-height:1.75;font-weight:350;">
-        Physics-accurate environment running at 60fps with multi-lane traffic, obstacles, and dynamic driving conditions.
+        Catmull&ndash;Rom smoothed waypoints, 3 traffic-light intersections with cross-traffic, fork at end. Easy/medium/hard difficulty.
       </p>
       <div style="margin-top:28px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-          <span style="font-size:0.68rem;color:var(--text-muted);letter-spacing:0.07em;text-transform:uppercase;font-weight:500;">Simulation FPS</span>
-          <span style="font-size:0.78rem;color:rgba(200,212,240,0.4);font-weight:500;">60fps</span>
+          <span style="font-size:0.68rem;color:var(--text-muted);letter-spacing:0.07em;text-transform:uppercase;font-weight:500;">Intersections</span>
+          <span style="font-size:0.78rem;color:rgba(200,212,240,0.4);font-weight:500;">3 lights</span>
         </div>
-        <div class="stat-bar"><div class="stat-fill" style="background:linear-gradient(90deg,var(--teal),var(--blue));" data-width="96"></div></div>
+        <div class="stat-bar"><div class="stat-fill" style="background:linear-gradient(90deg,var(--teal),var(--blue));" data-width="90"></div></div>
       </div>
     </div>
 
     <div class="feature-card glass reveal reveal-delay-4">
       <div class="icon-wrap" style="background:linear-gradient(138deg,rgba(232,168,58,0.16),rgba(232,168,58,0.04));border:1px solid rgba(232,168,58,0.18);">&#128225;</div>
-      <h3 style="font-size:1.08rem;font-weight:680;margin-bottom:11px;letter-spacing:-0.015em;color:rgba(228,234,255,0.9);">Sensor Fusion</h3>
+      <h3 style="font-size:1.08rem;font-weight:680;margin-bottom:11px;letter-spacing:-0.015em;color:rgba(228,234,255,0.9);">7-Ray Sensor Array</h3>
       <p style="font-size:0.86rem;color:var(--text-secondary);line-height:1.75;font-weight:350;">
-        7-ray LiDAR sensor arrays feed fused perception data into the AI pipeline for complete spatial awareness.
+        Each car ray-casts 7 sensors at 150-unit range. Detects road borders, traffic, and red stop lines. Feeds NN directly.
       </p>
       <div style="margin-top:28px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-          <span style="font-size:0.68rem;color:var(--text-muted);letter-spacing:0.07em;text-transform:uppercase;font-weight:500;">Sensor Coverage</span>
-          <span style="font-size:0.78rem;color:rgba(200,212,240,0.4);font-weight:500;">360&#176;</span>
+          <span style="font-size:0.68rem;color:var(--text-muted);letter-spacing:0.07em;text-transform:uppercase;font-weight:500;">Coverage</span>
+          <span style="font-size:0.78rem;color:rgba(200,212,240,0.4);font-weight:500;">7 rays / 360&#176;</span>
         </div>
-        <div class="stat-bar"><div class="stat-fill" style="background:linear-gradient(90deg,var(--amber),#e07844);" data-width="88"></div></div>
+        <div class="stat-bar"><div class="stat-fill" style="background:linear-gradient(90deg,var(--amber),#e07844);" data-width="92"></div></div>
       </div>
     </div>
 
@@ -543,58 +578,49 @@ const HTML = `
 <div class="section-glow-line"></div>
 
 
-<section id="wp-showcase" style="padding:136px 28px;max-width:1100px;margin:0 auto;">
+<section id="wp-showcase" style="padding:136px 28px;max-width:1066px;margin:0 auto;">
   <div class="reveal" style="text-align:center;margin-bottom:64px;">
     <div class="badge-pill glass" style="color:rgba(190,202,235,0.45);margin-bottom:22px;">Live Preview</div>
     <h2 style="font-size:clamp(2rem,3.8vw,3rem);font-weight:800;letter-spacing:-0.035em;line-height:1.08;margin-bottom:18px;color:rgba(235,240,255,0.96);">
-      Watch the AI<br/><span class="gradient-text">think and drive</span>
+      Watch both versions<br/><span class="gradient-text">running live</span>
     </h2>
-    <p style="font-size:0.92rem;color:var(--text-secondary);max-width:420px;margin:0 auto;line-height:1.75;font-weight:350;">
-      Real-time neural network visualization overlaid on the driving simulation. Watch neurons fire as the car navigates.
+    <p style="font-size:0.92rem;color:var(--text-secondary);max-width:480px;margin:0 auto;line-height:1.75;font-weight:350;">
+      Real, interactive previews of the actual projects. They start when you scroll here and pause when you scroll away.
     </p>
   </div>
 
-  <div class="reveal-scale showcase-outer">
-    <div class="showcase-wrap">
-      <div class="showcase-screen">
-        <div class="scan-line"></div>
-        <canvas id="sim-canvas" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
-
-        <div style="position:absolute;top:18px;left:18px;z-index:2;">
-          <div class="hud-glass" style="border-radius:12px;padding:13px 17px;min-width:152px;">
-            <div style="font-size:0.62rem;color:rgba(91,141,238,0.7);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;font-weight:550;">Neural Activity</div>
-            <div id="hud-score" style="font-size:1.55rem;font-weight:800;color:rgba(230,236,255,0.95);line-height:1;letter-spacing:-0.03em;">0</div>
-            <div style="font-size:0.67rem;color:rgba(180,190,220,0.3);margin-top:3px;font-weight:400;">fitness score</div>
-          </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;">
+    <!-- 2D Live Preview -->
+    <div class="reveal-scale showcase-outer">
+      <div style="padding:14px 22px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(91,141,238,0.15);background:rgba(91,141,238,0.04);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:0.95rem;font-weight:800;letter-spacing:-0.02em;color:rgba(235,240,255,0.95);">2D</span>
+          <span style="font-size:0.62rem;font-weight:700;color:rgba(91,141,238,0.85);letter-spacing:0.12em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:rgba(91,141,238,0.08);border:1px solid rgba(91,141,238,0.2);">Neural Lab</span>
         </div>
+        <span class="live-dot" style="display:inline-flex;align-items:center;gap:7px;font-size:0.66rem;color:rgba(46,196,163,0.85);font-weight:600;letter-spacing:0.1em;text-transform:uppercase;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#2ec4a3;box-shadow:0 0 8px rgba(46,196,163,0.7);animation:blink 1.4s ease-in-out infinite;"></span>
+          Live
+        </span>
+      </div>
+      <div class="showcase-wrap" style="border-top-left-radius:0;border-top-right-radius:0;">
+        <div class="showcase-screen live-iframe-slot" data-preview-src="/?preview=1" data-preview-label="2D" style="aspect-ratio:1/1;"></div>
+      </div>
+    </div>
 
-        <div style="position:absolute;top:18px;right:18px;z-index:2;">
-          <div class="hud-glass" style="border-radius:12px;padding:13px 17px;">
-            <div style="font-size:0.62rem;color:rgba(147,115,232,0.7);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;font-weight:550;">Generation</div>
-            <div id="hud-gen" style="font-size:1.55rem;font-weight:800;color:rgba(230,236,255,0.95);line-height:1;letter-spacing:-0.03em;">001</div>
-            <div style="font-size:0.67rem;color:rgba(180,190,220,0.3);margin-top:3px;font-weight:400;">evolving...</div>
-          </div>
+    <!-- 3D Live Preview -->
+    <div class="reveal-scale showcase-outer">
+      <div style="padding:14px 22px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(147,115,232,0.15);background:rgba(147,115,232,0.04);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:0.95rem;font-weight:800;letter-spacing:-0.02em;color:rgba(235,240,255,0.95);">3D</span>
+          <span style="font-size:0.62rem;font-weight:700;color:rgba(147,115,232,0.85);letter-spacing:0.12em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:rgba(147,115,232,0.08);border:1px solid rgba(147,115,232,0.2);">Iso Highway</span>
         </div>
-
-        <div style="position:absolute;bottom:18px;left:18px;right:18px;z-index:2;display:flex;gap:10px;align-items:flex-end;justify-content:space-between;">
-          <div class="hud-glass" style="border-radius:10px;padding:10px 16px;display:flex;gap:22px;">
-            <div>
-              <div style="font-size:0.58rem;color:rgba(180,190,220,0.28);text-transform:uppercase;letter-spacing:0.08em;font-weight:500;">Speed</div>
-              <div id="hud-speed" style="font-size:0.95rem;font-weight:700;color:var(--blue);letter-spacing:-0.01em;">72 km/h</div>
-            </div>
-            <div style="width:1px;background:rgba(255,255,255,0.06);"></div>
-            <div>
-              <div style="font-size:0.58rem;color:rgba(180,190,220,0.28);text-transform:uppercase;letter-spacing:0.08em;font-weight:500;">Alive</div>
-              <div id="hud-alive" style="font-size:0.95rem;font-weight:700;color:var(--teal);letter-spacing:-0.01em;">48 / 50</div>
-            </div>
-          </div>
-          <div class="hud-glass" style="border-radius:10px;padding:10px 16px;">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <div style="width:6px;height:6px;border-radius:50%;background:var(--teal);animation:blink 1.4s ease-in-out infinite;box-shadow:0 0 6px rgba(46,196,163,0.6);"></div>
-              <span style="font-size:0.7rem;color:rgba(180,190,220,0.38);font-weight:550;letter-spacing:0.07em;">SIMULATING</span>
-            </div>
-          </div>
-        </div>
+        <span class="live-dot" style="display:inline-flex;align-items:center;gap:7px;font-size:0.66rem;color:rgba(46,196,163,0.85);font-weight:600;letter-spacing:0.1em;text-transform:uppercase;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#2ec4a3;box-shadow:0 0 8px rgba(46,196,163,0.7);animation:blink 1.4s ease-in-out infinite;"></span>
+          Live
+        </span>
+      </div>
+      <div class="showcase-wrap" style="border-top-left-radius:0;border-top-right-radius:0;">
+        <div class="showcase-screen live-iframe-slot" data-preview-src="/3d-sim/index.html?preview=1" data-preview-label="3D" style="aspect-ratio:1/1;"></div>
       </div>
     </div>
   </div>
@@ -607,24 +633,24 @@ const HTML = `
 <section id="wp-metrics" style="padding:112px 28px;max-width:1100px;margin:0 auto;">
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;">
     <div class="metric-card glass reveal reveal-delay-1">
-      <div style="font-size:2.35rem;font-weight:850;letter-spacing:-0.04em;background:linear-gradient(130deg,rgba(165,184,255,0.95),rgba(91,141,238,0.85));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">12M+</div>
-      <div style="font-size:0.88rem;font-weight:560;color:rgba(210,218,240,0.52);margin-top:7px;">Simulations Run</div>
-      <div style="font-size:0.74rem;color:var(--text-muted);margin-top:4px;font-weight:350;">Across all users globally</div>
+      <div style="font-size:2.35rem;font-weight:850;letter-spacing:-0.04em;background:linear-gradient(130deg,rgba(165,184,255,0.95),rgba(91,141,238,0.85));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">2</div>
+      <div style="font-size:0.88rem;font-weight:560;color:rgba(210,218,240,0.52);margin-top:7px;">Versions Available</div>
+      <div style="font-size:0.74rem;color:var(--text-muted);margin-top:4px;font-weight:350;">2D Neural Lab + 3D Iso Highway</div>
     </div>
     <div class="metric-card glass reveal reveal-delay-2">
-      <div style="font-size:2.35rem;font-weight:850;letter-spacing:-0.04em;background:linear-gradient(130deg,rgba(196,175,255,0.95),rgba(147,115,232,0.85));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">99.7%</div>
-      <div style="font-size:0.88rem;font-weight:560;color:rgba(210,218,240,0.52);margin-top:7px;">Navigation Accuracy</div>
-      <div style="font-size:0.74rem;color:var(--text-muted);margin-top:4px;font-weight:350;">Best-in-class AI performance</div>
+      <div style="font-size:2.35rem;font-weight:850;letter-spacing:-0.04em;background:linear-gradient(130deg,rgba(196,175,255,0.95),rgba(147,115,232,0.85));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">100</div>
+      <div style="font-size:0.88rem;font-weight:560;color:rgba(210,218,240,0.52);margin-top:7px;">AI Cars per Generation</div>
+      <div style="font-size:0.74rem;color:var(--text-muted);margin-top:4px;font-weight:350;">Parallel evolution &mdash; top 20% selected</div>
     </div>
     <div class="metric-card glass reveal reveal-delay-3">
-      <div style="font-size:2.35rem;font-weight:850;letter-spacing:-0.04em;background:linear-gradient(130deg,rgba(150,230,210,0.95),rgba(46,196,163,0.85));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">60fps</div>
-      <div style="font-size:0.88rem;font-weight:560;color:rgba(210,218,240,0.52);margin-top:7px;">Realtime Physics</div>
-      <div style="font-size:0.74rem;color:var(--text-muted);margin-top:4px;font-weight:350;">Zero-lag simulation engine</div>
+      <div style="font-size:2.35rem;font-weight:850;letter-spacing:-0.04em;background:linear-gradient(130deg,rgba(150,230,210,0.95),rgba(46,196,163,0.85));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">7</div>
+      <div style="font-size:0.88rem;font-weight:560;color:rgba(210,218,240,0.52);margin-top:7px;">Sensor Rays per Car</div>
+      <div style="font-size:0.74rem;color:var(--text-muted);margin-top:4px;font-weight:350;">150-unit range, 360&deg; coverage</div>
     </div>
     <div class="metric-card glass reveal reveal-delay-4">
-      <div style="font-size:2.35rem;font-weight:850;letter-spacing:-0.04em;background:linear-gradient(130deg,rgba(255,218,140,0.95),rgba(232,168,58,0.85));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">0.8ms</div>
-      <div style="font-size:0.88rem;font-weight:560;color:rgba(210,218,240,0.52);margin-top:7px;">Inference Latency</div>
-      <div style="font-size:0.74rem;color:var(--text-muted);margin-top:4px;font-weight:350;">Optimized for real-time AI</div>
+      <div style="font-size:2.35rem;font-weight:850;letter-spacing:-0.04em;background:linear-gradient(130deg,rgba(255,218,140,0.95),rgba(232,168,58,0.85));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">3</div>
+      <div style="font-size:0.88rem;font-weight:560;color:rgba(210,218,240,0.52);margin-top:7px;">Traffic Light Intersections</div>
+      <div style="font-size:0.74rem;color:var(--text-muted);margin-top:4px;font-weight:350;">With cross traffic + stop logic</div>
     </div>
   </div>
 </section>
@@ -671,7 +697,10 @@ const HTML = `
 </footer>
 `;
 
-export default function WelcomePage({ onStart }) {
+export default function WelcomePage({ onStart, onStart2D, onStart3D }) {
+  // Backwards-compat: onStart is the legacy single callback (treated as 2D)
+  const start2D = onStart2D || onStart;
+  const start3D = onStart3D || (() => window.open('/3d-sim/index.html', '_blank', 'noopener'));
   useEffect(() => {
     let cursorRaf, orbRaf, heroParticleRaf, simRaf;
     let heroResizeHandler, simResizeHandler;
@@ -684,9 +713,32 @@ export default function WelcomePage({ onStart }) {
 
     document.body.style.cursor = 'none';
 
-    // Wire start buttons
+    // Wire 2D start buttons
     document.querySelectorAll('.start-sim-btn').forEach(btn => {
-      btn.addEventListener('click', onStart);
+      btn.addEventListener('click', start2D);
+    });
+    // Wire 3D mode buttons — switch to embedded 3D view (no new tab)
+    document.querySelectorAll('.launch-3d-btn').forEach(btn => {
+      btn.addEventListener('click', start3D);
+    });
+
+    // Hover preview videos on .preview-card
+    document.querySelectorAll('.preview-card').forEach(card => {
+      const video = card.querySelector('.preview-video');
+      const veil = card.querySelector('.preview-veil');
+      if (!video) return;
+      card.addEventListener('mouseenter', () => {
+        video.style.opacity = '0.85';
+        if (veil) veil.style.opacity = '1';
+        const p = video.play();
+        if (p && p.catch) p.catch(() => {});
+      });
+      card.addEventListener('mouseleave', () => {
+        video.style.opacity = '0';
+        if (veil) veil.style.opacity = '0';
+        video.pause();
+        video.currentTime = 0;
+      });
     });
 
     // Loader
@@ -1052,6 +1104,35 @@ export default function WelcomePage({ onStart }) {
       simRaf = requestAnimationFrame(sLoop);
     }
 
+    // Lazy-mount live iframes on intersect (skip if we're already inside an iframe to avoid recursion)
+    const livePreviewSlots = document.querySelectorAll('.live-iframe-slot');
+    let livePreviewObserver = null;
+    const isInIframe = window.top !== window.self;
+    if (!isInIframe && livePreviewSlots.length && 'IntersectionObserver' in window) {
+      livePreviewObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          const slot = entry.target;
+          if (entry.isIntersecting) {
+            if (!slot.querySelector('iframe')) {
+              const src = slot.getAttribute('data-preview-src');
+              const label = slot.getAttribute('data-preview-label') || '';
+              const iframe = document.createElement('iframe');
+              iframe.src = src;
+              iframe.title = `${label} Live Preview`;
+              iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;background:#04060f;';
+              iframe.setAttribute('loading', 'lazy');
+              iframe.setAttribute('referrerpolicy', 'no-referrer');
+              slot.appendChild(iframe);
+            }
+          } else {
+            const existing = slot.querySelector('iframe');
+            if (existing) existing.remove();
+          }
+        }
+      }, { rootMargin: '200px', threshold: 0.1 });
+      livePreviewSlots.forEach(s => livePreviewObserver.observe(s));
+    }
+
     return () => {
       document.body.style.cursor = '';
       document.body.classList.remove('cursor-hover', 'cursor-click');
@@ -1071,6 +1152,7 @@ export default function WelcomePage({ onStart }) {
       revealObs.disconnect();
       lineObs.disconnect();
       barObs.disconnect();
+      if (livePreviewObserver) livePreviewObserver.disconnect();
     };
   }, [onStart]);
 

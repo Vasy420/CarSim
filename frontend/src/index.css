@@ -17,53 +17,53 @@ code {
 
 @layer base {
     :root {
-        /* Cyberpunk Futuristic Dark Theme */
-        --background: 220 18% 8%;              /* Deep dark blue-gray */
-        --foreground: 180 100% 95%;            /* Light cyan-white */
-        
-        --card: 220 20% 12%;                   /* Slightly lighter than background */
-        --card-foreground: 180 100% 95%;
-        
-        --popover: 220 22% 10%;
-        --popover-foreground: 180 100% 95%;
-        
-        --primary: 180 100% 50%;               /* Neon cyan */
-        --primary-foreground: 220 18% 8%;
-        --primary-glow: 180 100% 60%;          /* Lighter cyan for glow */
-        
-        --secondary: 280 100% 60%;             /* Neon magenta/purple */
+        /* Palette matched to Welcome page: deep-black bg, soft blue + purple + teal accents */
+        --background: 225 58% 4%;              /* #04060f */
+        --foreground: 230 25% 95%;             /* #eceef6 */
+
+        --card: 225 30% 8%;
+        --card-foreground: 230 25% 95%;
+
+        --popover: 225 35% 6%;
+        --popover-foreground: 230 25% 95%;
+
+        --primary: 218 78% 65%;                /* #5b8dee soft blue */
+        --primary-foreground: 225 58% 4%;
+        --primary-glow: 218 85% 72%;
+
+        --secondary: 257 70% 68%;              /* #9373e8 soft purple */
         --secondary-foreground: 0 0% 100%;
-        --secondary-glow: 280 100% 70%;
-        
-        --accent: 330 100% 60%;                /* Hot pink */
+        --secondary-glow: 257 80% 75%;
+
+        --accent: 168 62% 47%;                 /* #2ec4a3 teal */
         --accent-foreground: 0 0% 100%;
-        
-        --success: 150 100% 50%;               /* Neon green */
-        --warning: 45 100% 55%;                /* Neon yellow */
-        --danger: 0 100% 60%;                  /* Neon red */
-        
-        --muted: 220 15% 20%;
-        --muted-foreground: 220 10% 60%;
-        
-        --destructive: 0 100% 60%;
+
+        --success: 168 62% 47%;
+        --warning: 40 80% 57%;                 /* #e8a83a amber */
+        --danger: 0 80% 65%;
+
+        --muted: 225 18% 16%;
+        --muted-foreground: 225 12% 55%;
+
+        --destructive: 0 80% 65%;
         --destructive-foreground: 0 0% 100%;
-        
-        --border: 220 20% 20%;
-        --input: 220 20% 18%;
-        --ring: 180 100% 50%;
-        
+
+        --border: 225 25% 16%;
+        --input: 225 25% 14%;
+        --ring: 218 78% 65%;
+
         --radius: 0.5rem;
-        
-        /* Custom gradient tokens */
-        --gradient-primary: linear-gradient(135deg, hsl(180 100% 50%), hsl(200 100% 60%));
-        --gradient-secondary: linear-gradient(135deg, hsl(280 100% 60%), hsl(330 100% 60%));
-        --gradient-cyber: linear-gradient(135deg, hsl(180 100% 50%), hsl(280 100% 60%));
-        
-        /* Glow shadows */
-        --shadow-cyan-glow: 0 0 20px hsl(180 100% 50% / 0.5), 0 0 40px hsl(180 100% 50% / 0.3);
-        --shadow-magenta-glow: 0 0 20px hsl(280 100% 60% / 0.5), 0 0 40px hsl(280 100% 60% / 0.3);
-        --shadow-pink-glow: 0 0 20px hsl(330 100% 60% / 0.5), 0 0 40px hsl(330 100% 60% / 0.3);
-        --shadow-green-glow: 0 0 20px hsl(150 100% 50% / 0.5), 0 0 40px hsl(150 100% 50% / 0.3);
+
+        /* Gradient tokens — blue → purple → teal */
+        --gradient-primary: linear-gradient(135deg, hsl(218 78% 65%), hsl(257 70% 68%));
+        --gradient-secondary: linear-gradient(135deg, hsl(257 70% 68%), hsl(168 62% 47%));
+        --gradient-cyber: linear-gradient(135deg, hsl(218 78% 65%), hsl(257 70% 68%));
+
+        /* Glow shadows matched to new palette */
+        --shadow-cyan-glow: 0 0 20px hsl(218 78% 65% / 0.5), 0 0 40px hsl(218 78% 65% / 0.3);
+        --shadow-magenta-glow: 0 0 20px hsl(257 70% 68% / 0.5), 0 0 40px hsl(257 70% 68% / 0.3);
+        --shadow-pink-glow: 0 0 20px hsl(257 70% 68% / 0.5), 0 0 40px hsl(257 70% 68% / 0.3);
+        --shadow-green-glow: 0 0 20px hsl(168 62% 47% / 0.5), 0 0 40px hsl(168 62% 47% / 0.3);
         
         /* Transitions */
         --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
